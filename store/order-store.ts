@@ -17,6 +17,7 @@ import type {
 interface OrderState {
   customer: CustomerDetails;
   sections: ArticleSection[];
+  activeSectionId: string | null;
   catalog: ArticleGroup[];
   catalogLoaded: boolean;
   catalogError: string | null;
@@ -24,6 +25,7 @@ interface OrderState {
   setCustomer: (customer: Partial<CustomerDetails>) => void;
   setCatalog: (catalog: ArticleGroup[]) => void;
   setCatalogError: (error: string | null) => void;
+  selectArticle: (articleNumber: string) => boolean;
   addSection: (articleNumber: string) => boolean;
   removeSection: (sectionId: string) => void;
   updateSectionArticle: (sectionId: string, articleNumber: string) => boolean;
@@ -61,6 +63,7 @@ function clampQty(qty: number): number {
 export const useOrderStore = create<OrderState>((set, get) => ({
   customer: buildInitialCustomer(),
   sections: [],
+  activeSectionId: null,
   catalog: [],
   catalogLoaded: false,
   catalogError: null,
@@ -92,17 +95,53 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       return false;
     }
 
+    const newSection = createEmptySection(articleNumber);
+
     set((state) => ({
-      sections: [...state.sections, createEmptySection(articleNumber)],
+      sections: [...state.sections, newSection],
+      activeSectionId: newSection.id,
+    }));
+
+    return true;
+  },
+
+  selectArticle: (articleNumber) => {
+    const { catalog, sections } = get();
+    const article = getArticleGroup(catalog, articleNumber);
+
+    if (!article) return false;
+
+    const existing = sections.find(
+      (section) => section.articleNumber === articleNumber
+    );
+
+    if (existing) {
+      set({ activeSectionId: existing.id });
+      return true;
+    }
+
+    const newSection = createEmptySection(articleNumber);
+
+    set((state) => ({
+      sections: [...state.sections, newSection],
+      activeSectionId: newSection.id,
     }));
 
     return true;
   },
 
   removeSection: (sectionId) =>
-    set((state) => ({
-      sections: state.sections.filter((section) => section.id !== sectionId),
-    })),
+    set((state) => {
+      const sections = state.sections.filter(
+        (section) => section.id !== sectionId
+      );
+      const activeSectionId =
+        state.activeSectionId === sectionId
+          ? (sections.at(-1)?.id ?? null)
+          : state.activeSectionId;
+
+      return { sections, activeSectionId };
+    }),
 
   updateSectionArticle: (sectionId, articleNumber) => {
     const { catalog, sections } = get();
@@ -124,6 +163,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
           ? { ...section, articleNumber, quantities: {} }
           : section
       ),
+      activeSectionId: sectionId,
     }));
 
     return true;
@@ -160,12 +200,14 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     set({
       customer: buildInitialCustomer(),
       sections: [],
+      activeSectionId: null,
     }),
 
   hydrateOrder: (customer, sections) =>
     set({
       customer,
       sections,
+      activeSectionId: sections.at(-1)?.id ?? null,
     }),
 
   getUsedArticleNumbers: () => selectUsedArticleNumbers(get().sections),

@@ -3,7 +3,7 @@
 import { AlertCircle, PackageSearch } from "lucide-react";
 
 import { AppHeader } from "@/components/layout/app-header";
-import { ArticleSectionCard } from "@/components/order/article-section-card";
+import { ActiveArticlePanel } from "@/components/order/active-article-panel";
 import { CustomerForm } from "@/components/order/customer-form";
 import { OrderSummary } from "@/components/order/order-summary";
 import { OrderToolbar } from "@/components/order/order-toolbar";
@@ -86,8 +86,8 @@ export function OrderPage() {
               <CardHeader>
                 <CardTitle>Articles</CardTitle>
                 <CardDescription>
-                  Search by article number, add sections, and set quantities
-                  for each color and size combination.
+                  Search by article number and set quantities for the selected
+                  article. All added articles appear in the order summary.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -98,22 +98,13 @@ export function OrderPage() {
                     <PackageSearch className="mb-3 size-10 text-muted-foreground" />
                     <h3 className="text-sm font-medium">No articles added</h3>
                     <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                      Use the search box above to find an article number and
-                      add it to your order.
+                      Search for an article number above to start building your
+                      order.
                     </p>
                   </div>
                 ) : (
                   <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-                    <div className="space-y-4">
-                      {sections.map((section, index) => (
-                        <ArticleSectionCard
-                          key={section.id}
-                          section={section}
-                          catalog={catalog}
-                          index={index}
-                        />
-                      ))}
-                    </div>
+                    <ActiveArticlePanel catalog={catalog} />
                     <OrderSummary />
                   </div>
                 )}

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   Download,
   FolderOpen,
-  Plus,
   RotateCcw,
   Save,
   Send,
@@ -15,10 +14,7 @@ import { ArticleCombobox } from "@/components/order/article-combobox";
 import { Button } from "@/components/ui/button";
 import { exportOrderToExcel } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
-import {
-  selectOrderLineItems,
-  selectUsedArticleNumbers,
-} from "@/lib/order-selectors";
+import { selectOrderLineItems } from "@/lib/order-selectors";
 import {
   loadOrderFromStorage,
   saveOrderToStorage,
@@ -32,35 +28,28 @@ interface OrderToolbarProps {
 }
 
 export function OrderToolbar({ catalog }: OrderToolbarProps) {
-  const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customer = useOrderStore((state) => state.customer);
   const sections = useOrderStore((state) => state.sections);
-  const addSection = useOrderStore((state) => state.addSection);
+  const activeSectionId = useOrderStore((state) => state.activeSectionId);
+  const selectArticle = useOrderStore((state) => state.selectArticle);
   const resetOrder = useOrderStore((state) => state.resetOrder);
   const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
 
-  const usedArticleNumbers = useMemo(
-    () => selectUsedArticleNumbers(sections),
-    [sections]
-  );
+  const activeArticleNumber = useMemo(() => {
+    const activeSection =
+      sections.find((section) => section.id === activeSectionId) ??
+      sections.at(-1);
+    return activeSection?.articleNumber ?? null;
+  }, [sections, activeSectionId]);
 
-  const handleAddSection = () => {
-    if (!selectedArticle) {
-      toast.error("Select an article to add");
-      return;
+  const handleArticleSelect = (articleNumber: string) => {
+    const selected = selectArticle(articleNumber);
+    if (!selected) {
+      toast.error("Unable to select article");
     }
-
-    const added = addSection(selectedArticle);
-    if (added) {
-      toast.success(`Article ${selectedArticle} added`);
-      setSelectedArticle(null);
-      return;
-    }
-
-    toast.error("This article is already in the order");
   };
 
   const handleSave = () => {
@@ -107,7 +96,6 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
       await submitOrderToAdmin(customer, items);
       toast.success("Order submitted successfully");
       resetOrder();
-      setSelectedArticle(null);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to submit order"
@@ -143,29 +131,19 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
 
   const handleReset = () => {
     resetOrder();
-    setSelectedArticle(null);
     toast.success("New order started");
   };
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex w-full max-w-md flex-col gap-2">
-        <span className="text-sm font-medium">Add Article Section</span>
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <ArticleCombobox
-              catalog={catalog}
-              value={selectedArticle}
-              onSelect={setSelectedArticle}
-              disabledArticles={usedArticleNumbers}
-              placeholder="Search article number..."
-            />
-          </div>
-          <Button type="button" onClick={handleAddSection}>
-            <Plus data-icon="inline-start" />
-            Add
-          </Button>
-        </div>
+        <span className="text-sm font-medium">Select Article</span>
+        <ArticleCombobox
+          catalog={catalog}
+          value={activeArticleNumber}
+          onSelect={handleArticleSelect}
+          placeholder="Search article number..."
+        />
       </div>
 
       <div className="flex flex-wrap gap-2">
