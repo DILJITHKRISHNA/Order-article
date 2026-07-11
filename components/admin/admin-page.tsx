@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download, LogOut, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +26,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  getLocalSubmittedOrderRows,
+  mergeSubmittedOrders,
+} from "@/lib/client-orders";
 import type { AdminOrderRow } from "@/types/order";
 
 interface AdminOrdersResponse {
@@ -33,7 +38,16 @@ interface AdminOrdersResponse {
   totalOrders: number;
 }
 
+function buildStats(orders: AdminOrderRow[]) {
+  const uniqueOrderNumbers = new Set(orders.map((order) => order.orderNumber));
+  return {
+    totalLineItems: orders.length,
+    totalOrders: uniqueOrderNumbers.size,
+  };
+}
+
 export function AdminPage() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,10 +55,18 @@ export function AdminPage() {
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
 
+  const applyOrders = useCallback((nextOrders: AdminOrderRow[]) => {
+    setOrders(nextOrders);
+    setStats(buildStats(nextOrders));
+    setIsAuthenticated(true);
+  }, []);
+
   const loadOrders = useCallback(async () => {
     const response = await fetch("/api/admin/orders", {
       credentials: "include",
+      cache: "no-store",
     });
+
     if (response.status === 401) {
       setIsAuthenticated(false);
       return false;
@@ -55,19 +77,39 @@ export function AdminPage() {
     }
 
     const data = (await response.json()) as AdminOrdersResponse;
-    setOrders(data.orders);
-    setStats({
-      totalLineItems: data.totalLineItems,
-      totalOrders: data.totalOrders,
-    });
-    setIsAuthenticated(true);
+    const mergedOrders = mergeSubmittedOrders(
+      data.orders,
+      getLocalSubmittedOrderRows()
+    );
+
+    applyOrders(mergedOrders);
     return true;
-  }, []);
+  }, [applyOrders]);
 
   useEffect(() => {
-    void loadOrders()
-      .catch(() => setIsAuthenticated(false))
-      .finally(() => setIsLoading(false));
+    async function init() {
+      try {
+        const sessionResponse = await fetch("/api/admin/session", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const session = (await sessionResponse.json()) as {
+          authenticated: boolean;
+        };
+
+        if (session.authenticated) {
+          await loadOrders();
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void init();
   }, [loadOrders]);
 
   const handleLogin = async (event: React.FormEvent) => {
@@ -79,7 +121,7 @@ export function AdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: password.trim() }),
       });
 
       if (!response.ok) {
@@ -87,11 +129,14 @@ export function AdminPage() {
         return;
       }
 
+      router.refresh();
+
       const loggedIn = await loadOrders();
       if (!loggedIn) {
         toast.error("Login succeeded but session was not saved. Try again.");
         return;
       }
+
       toast.success("Admin access granted");
       setPassword("");
     } catch {
@@ -102,10 +147,14 @@ export function AdminPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    await fetch("/api/admin/logout", {
+      method: "POST",
+      credentials: "include",
+    });
     setIsAuthenticated(false);
     setOrders([]);
     setStats({ totalLineItems: 0, totalOrders: 0 });
+    router.refresh();
     toast.success("Logged out");
   };
 
@@ -137,7 +186,7 @@ export function AdminPage() {
                 Admin Access
               </CardTitle>
               <CardDescription>
-                Enter the admin password to view the master orders Excel.
+                Enter the admin password to view all submitted orders.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -173,7 +222,7 @@ export function AdminPage() {
             <div>
               <CardTitle>Admin Orders</CardTitle>
               <CardDescription>
-                Master Excel containing all submitted customer orders.
+                Master list of all submitted customer orders.
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -196,9 +245,6 @@ export function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle>All Submitted Orders</CardTitle>
-            <CardDescription>
-              Every user submission is appended to `data/admin-orders.xlsx`.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (

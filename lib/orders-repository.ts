@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
-import path from "node:path";
 
 import type { CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
+import { getWritableDataFilePath } from "@/lib/server-data-path";
 import {
   createSubmittedOrderRecord,
   flattenSubmittedOrders,
@@ -10,38 +10,41 @@ import {
 
 export const ORDERS_JSON_FILENAME = "orders.json";
 
-function getDataDirectory(): string {
-  return path.join(process.cwd(), "data");
-}
-
-function getOrdersJsonPath(): string {
-  return path.join(getDataDirectory(), ORDERS_JSON_FILENAME);
-}
-
-async function ensureDataDirectory(): Promise<void> {
-  await fs.mkdir(getDataDirectory(), { recursive: true });
-}
+const memoryDatabase: OrdersDatabase = { orders: [] };
 
 async function readDatabase(): Promise<OrdersDatabase> {
-  await ensureDataDirectory();
+  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
+
+  if (!filePath) {
+    return { orders: [...memoryDatabase.orders] };
+  }
 
   try {
-    const raw = await fs.readFile(getOrdersJsonPath(), "utf8");
+    const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw) as OrdersDatabase;
 
     if (!Array.isArray(parsed.orders)) {
-      return { orders: [] };
+      return { orders: [...memoryDatabase.orders] };
     }
 
+    memoryDatabase.orders = parsed.orders;
     return parsed;
   } catch {
-    return { orders: [] };
+    return { orders: [...memoryDatabase.orders] };
   }
 }
 
 async function writeDatabase(database: OrdersDatabase): Promise<void> {
-  await ensureDataDirectory();
-  await fs.writeFile(getOrdersJsonPath(), JSON.stringify(database, null, 2), "utf8");
+  memoryDatabase.orders = database.orders;
+
+  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
+  if (!filePath) return;
+
+  try {
+    await fs.writeFile(filePath, JSON.stringify(database, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to persist orders to disk:", error);
+  }
 }
 
 export async function appendSubmittedOrder(
@@ -69,12 +72,16 @@ export async function readSubmittedOrderRows() {
 }
 
 export async function readOrdersJsonBuffer(): Promise<Buffer> {
-  await ensureDataDirectory();
+  const database = await readDatabase();
+  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
 
-  try {
-    return await fs.readFile(getOrdersJsonPath());
-  } catch {
-    await writeDatabase({ orders: [] });
-    return Buffer.from(JSON.stringify({ orders: [] }, null, 2), "utf8");
+  if (filePath) {
+    try {
+      return await fs.readFile(filePath);
+    } catch {
+      // fall through to in-memory buffer
+    }
   }
+
+  return Buffer.from(JSON.stringify(database, null, 2), "utf8");
 }

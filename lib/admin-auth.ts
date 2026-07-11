@@ -16,7 +16,10 @@ export function isValidAdminPassword(password: string): boolean {
 }
 
 export function getAdminCookieOptions(request: Request) {
-  const isSecure = new URL(request.url).protocol === "https:";
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const isSecure =
+    forwardedProto === "https" ||
+    new URL(request.url).protocol === "https:";
 
   return {
     httpOnly: true,
@@ -25,4 +28,18 @@ export function getAdminCookieOptions(request: Request) {
     path: "/",
     maxAge: 60 * 60 * 8,
   };
+}
+
+export async function setAdminAuthCookie(request: Request): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(
+    ADMIN_AUTH_COOKIE,
+    "authenticated",
+    getAdminCookieOptions(request)
+  );
+}
+
+export async function clearAdminAuthCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_AUTH_COOKIE);
 }

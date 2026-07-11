@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { ADMIN_AUTH_COOKIE } from "@/lib/admin-auth";
+import { clearAdminAuthCookie } from "@/lib/admin-auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const response = NextResponse.json({ success: true });
-  response.cookies.delete(ADMIN_AUTH_COOKIE);
-  return response;
+  await clearAdminAuthCookie();
+  return NextResponse.json({ success: true });
 }

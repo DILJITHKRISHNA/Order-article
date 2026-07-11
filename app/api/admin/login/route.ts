@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 
-import {
-  ADMIN_AUTH_COOKIE,
-  getAdminCookieOptions,
-  isValidAdminPassword,
-} from "@/lib/admin-auth";
+import { isAdminAuthenticated, setAdminAuthCookie, isValidAdminPassword } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -16,15 +13,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
-    const response = NextResponse.json({ success: true });
-    response.cookies.set(
-      ADMIN_AUTH_COOKIE,
-      "authenticated",
-      getAdminCookieOptions(request)
-    );
+    await setAdminAuthCookie(request);
 
-    return response;
-  } catch {
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Admin login failed:", error);
     return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }

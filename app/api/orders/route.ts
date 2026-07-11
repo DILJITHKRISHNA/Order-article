@@ -5,6 +5,7 @@ import { appendSubmittedOrder } from "@/lib/orders-repository";
 import { submitOrderSchema } from "@/schemas/submit-order-schema";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -26,11 +27,7 @@ export async function POST(request: Request) {
       submittedAt
     );
 
-    try {
-      await syncAdminOrdersExcel();
-    } catch (excelError) {
-      console.error("Failed to sync admin Excel file:", excelError);
-    }
+    await syncAdminOrdersExcel();
 
     return NextResponse.json({
       success: true,

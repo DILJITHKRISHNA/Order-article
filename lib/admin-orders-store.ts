@@ -1,9 +1,7 @@
-import path from "node:path";
-
 import ExcelJS from "exceljs";
 
+import { getWritableDataFilePath } from "@/lib/server-data-path";
 import { readSubmittedOrderRows } from "@/lib/orders-repository";
-import type { CustomerDetails, OrderLineItem } from "@/types/order";
 
 export const ADMIN_ORDERS_FILENAME = "admin-orders.xlsx";
 
@@ -36,10 +34,6 @@ const HEADER_FILL: ExcelJS.Fill = {
   pattern: "solid",
   fgColor: { argb: "FFE2E8F0" },
 };
-
-function getAdminOrdersPath(): string {
-  return path.join(process.cwd(), "data", ADMIN_ORDERS_FILENAME);
-}
 
 function styleHeaderRow(row: ExcelJS.Row) {
   row.font = { bold: true };
@@ -91,18 +85,15 @@ async function buildAdminWorkbook(
 export async function syncAdminOrdersExcel(): Promise<void> {
   const rows = await readSubmittedOrderRows();
   const workbook = await buildAdminWorkbook(rows);
-  await workbook.xlsx.writeFile(getAdminOrdersPath());
-}
+  const filePath = await getWritableDataFilePath(ADMIN_ORDERS_FILENAME);
 
-export async function appendOrderToAdminExcel(
-  customer: CustomerDetails,
-  items: OrderLineItem[],
-  submittedAt: string
-): Promise<void> {
-  void customer;
-  void items;
-  void submittedAt;
-  await syncAdminOrdersExcel();
+  if (!filePath) return;
+
+  try {
+    await workbook.xlsx.writeFile(filePath);
+  } catch (error) {
+    console.error("Failed to write admin Excel file:", error);
+  }
 }
 
 export async function readAdminOrders(): Promise<AdminOrderRow[]> {
