@@ -1,13 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Download,
-  FolderOpen,
-  RotateCcw,
-  Save,
-  Send,
-} from "lucide-react";
+import { Download, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { ArticleCombobox } from "@/components/order/article-combobox";
@@ -15,10 +9,6 @@ import { Button } from "@/components/ui/button";
 import { exportOrderToExcel } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
 import { selectOrderLineItems } from "@/lib/order-selectors";
-import {
-  loadOrderFromStorage,
-  saveOrderToStorage,
-} from "@/lib/storage";
 import { customerSchema } from "@/schemas/customer-schema";
 import { useOrderStore } from "@/store/order-store";
 import type { ArticleGroup } from "@/types/article";
@@ -36,7 +26,6 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
   const activeSectionId = useOrderStore((state) => state.activeSectionId);
   const selectArticle = useOrderStore((state) => state.selectArticle);
   const resetOrder = useOrderStore((state) => state.resetOrder);
-  const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
 
   const activeArticleNumber = useMemo(() => {
     const activeSection =
@@ -50,32 +39,6 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
     if (!selected) {
       toast.error("Unable to select article");
     }
-  };
-
-  const handleSave = () => {
-    const validation = customerSchema.safeParse(customer);
-    if (!validation.success) {
-      toast.error("Complete customer details before saving");
-      return;
-    }
-
-    saveOrderToStorage({
-      customer,
-      sections,
-      savedAt: new Date().toISOString(),
-    });
-    toast.success("Order saved to local storage");
-  };
-
-  const handleLoad = () => {
-    const saved = loadOrderFromStorage();
-    if (!saved) {
-      toast.info("No saved order found");
-      return;
-    }
-
-    hydrateOrder(saved.customer, saved.sections);
-    toast.success("Saved order loaded");
   };
 
   const handleSubmitOrder = async () => {
@@ -154,14 +117,6 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
         >
           <Send data-icon="inline-start" />
           {isSubmitting ? "Submitting..." : "Submit Order"}
-        </Button>
-        <Button type="button" variant="outline" onClick={handleLoad}>
-          <FolderOpen data-icon="inline-start" />
-          Load
-        </Button>
-        <Button type="button" variant="outline" onClick={handleSave}>
-          <Save data-icon="inline-start" />
-          Save
         </Button>
         <Button
           type="button"

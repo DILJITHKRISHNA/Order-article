@@ -74,7 +74,7 @@ export function OrderPage() {
                 <CardTitle>Customer Details</CardTitle>
                 <CardDescription>
                   Order number is generated automatically. Fill in customer
-                  information before saving.
+                  information before submitting your order.
                 </CardDescription>
               </CardHeader>
               <CardContent>
