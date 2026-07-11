@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { exportOrderToExcel } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
 import { selectOrderLineItems } from "@/lib/order-selectors";
+import { saveSubmittedOrderToStorage } from "@/lib/storage";
 import { customerSchema } from "@/schemas/customer-schema";
 import { useOrderStore } from "@/store/order-store";
 import type { ArticleGroup } from "@/types/article";
@@ -56,7 +57,14 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
 
     setIsSubmitting(true);
     try {
-      await submitOrderToAdmin(customer, items);
+      const result = await submitOrderToAdmin(customer, items);
+
+      saveSubmittedOrderToStorage({
+        customer,
+        items,
+        submittedAt: result.submittedAt,
+      });
+
       toast.success("Order submitted successfully");
       resetOrder();
     } catch (error) {

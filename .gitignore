@@ -38,4 +38,5 @@ yarn-error.log*
 
 # admin master orders file
 /data/admin-orders.xlsx
+/data/orders.json
 

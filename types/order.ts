@@ -26,6 +26,12 @@ export interface SavedOrder {
   savedAt: string;
 }
 
+export interface SubmittedOrderRecord {
+  customer: CustomerDetails;
+  items: OrderLineItem[];
+  submittedAt: string;
+}
+
 export interface AdminOrderRow {
   orderNumber: string;
   customerName: string;

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { appendOrderToAdminExcel } from "@/lib/admin-orders-store";
+import { syncAdminOrdersExcel } from "@/lib/admin-orders-store";
+import { appendSubmittedOrder } from "@/lib/orders-repository";
 import { submitOrderSchema } from "@/schemas/submit-order-schema";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -17,11 +20,17 @@ export async function POST(request: Request) {
 
     const submittedAt = new Date().toISOString();
 
-    await appendOrderToAdminExcel(
+    await appendSubmittedOrder(
       parsed.data.customer,
       parsed.data.items,
       submittedAt
     );
+
+    try {
+      await syncAdminOrdersExcel();
+    } catch (excelError) {
+      console.error("Failed to sync admin Excel file:", excelError);
+    }
 
     return NextResponse.json({
       success: true,

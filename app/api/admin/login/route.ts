@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 
 import {
   ADMIN_AUTH_COOKIE,
+  getAdminCookieOptions,
   isValidAdminPassword,
 } from "@/lib/admin-auth";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +17,11 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ success: true });
-    response.cookies.set(ADMIN_AUTH_COOKIE, "authenticated", {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 8,
-    });
+    response.cookies.set(
+      ADMIN_AUTH_COOKIE,
+      "authenticated",
+      getAdminCookieOptions(request)
+    );
 
     return response;
   } catch {

@@ -42,7 +42,9 @@ export function AdminPage() {
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
 
   const loadOrders = useCallback(async () => {
-    const response = await fetch("/api/admin/orders");
+    const response = await fetch("/api/admin/orders", {
+      credentials: "include",
+    });
     if (response.status === 401) {
       setIsAuthenticated(false);
       return false;
@@ -76,6 +78,7 @@ export function AdminPage() {
       const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ password }),
       });
 
@@ -84,7 +87,11 @@ export function AdminPage() {
         return;
       }
 
-      await loadOrders();
+      const loggedIn = await loadOrders();
+      if (!loggedIn) {
+        toast.error("Login succeeded but session was not saved. Try again.");
+        return;
+      }
       toast.success("Admin access granted");
       setPassword("");
     } catch {
@@ -95,7 +102,7 @@ export function AdminPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setIsAuthenticated(false);
     setOrders([]);
     setStats({ totalLineItems: 0, totalOrders: 0 });
