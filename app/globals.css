@@ -119,7 +119,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 font-bold;
+    @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground font-bold;
@@ -127,10 +127,16 @@
   html {
     @apply font-sans font-bold;
   }
+  label {
+    @apply font-bold;
+  }
   input,
   textarea,
-  select,
-  button {
+  select {
     @apply font-bold;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply font-normal;
   }
 }

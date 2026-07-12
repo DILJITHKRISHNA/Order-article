@@ -35,7 +35,9 @@ export function CustomerForm() {
           {...register("orderNumber")}
         />
         {errors.orderNumber && (
-          <p className="text-xs text-destructive">{errors.orderNumber.message}</p>
+          <p className="text-xs font-normal text-destructive">
+            {errors.orderNumber.message}
+          </p>
         )}
       </div>
 
@@ -50,7 +52,7 @@ export function CustomerForm() {
           })}
         />
         {errors.customerName && (
-          <p className="text-xs text-destructive">
+          <p className="text-xs font-normal text-destructive">
             {errors.customerName.message}
           </p>
         )}
@@ -89,7 +91,9 @@ export function CustomerForm() {
           })}
         />
         {errors.location && (
-          <p className="text-xs text-destructive">{errors.location.message}</p>
+          <p className="text-xs font-normal text-destructive">
+            {errors.location.message}
+          </p>
         )}
       </div>
 
@@ -105,7 +109,7 @@ export function CustomerForm() {
           })}
         />
         {errors.phoneNumber && (
-          <p className="text-xs text-destructive">
+          <p className="text-xs font-normal text-destructive">
             {errors.phoneNumber.message}
           </p>
         )}

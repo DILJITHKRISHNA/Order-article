@@ -8,12 +8,11 @@ import "./globals.css";
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["700"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
   title: "Order Management",
-  description: "ERP-style order management for footwear articles",
 };
 
 export default function RootLayout({

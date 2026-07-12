@@ -111,7 +111,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex w-full max-w-md flex-col gap-2">
-        <span className="text-sm font-medium">Select Article</span>
+        <span className="text-base font-bold">Select Article</span>
         <ArticleCombobox
           catalog={catalog}
           value={activeArticleNumber}

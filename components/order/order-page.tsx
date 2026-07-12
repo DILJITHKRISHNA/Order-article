@@ -71,7 +71,7 @@ export function OrderPage() {
           <>
             <Card>
               <CardHeader>
-                <CardTitle>Customer Details</CardTitle>
+                <CardTitle className="text-lg font-bold">Customer Details</CardTitle>
                 <CardDescription>
                   Order number is generated automatically. Fill in customer
                   information before submitting your order.
@@ -84,7 +84,7 @@ export function OrderPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Articles</CardTitle>
+                <CardTitle className="text-lg font-bold">Articles</CardTitle>
                 <CardDescription>
                   Search by article number and set quantities for the selected
                   article. All added articles appear in the order summary.
