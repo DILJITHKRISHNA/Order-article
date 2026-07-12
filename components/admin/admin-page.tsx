@@ -54,6 +54,7 @@ export function AdminPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
+  const [storageProvider, setStorageProvider] = useState("local");
 
   const applyOrders = useCallback((nextOrders: AdminOrderRow[]) => {
     setOrders(nextOrders);
@@ -99,6 +100,14 @@ export function AdminPage() {
 
         if (session.authenticated) {
           await loadOrders();
+          const storageResponse = await fetch("/api/admin/storage", {
+            credentials: "include",
+            cache: "no-store",
+          });
+          if (storageResponse.ok) {
+            const storage = (await storageResponse.json()) as { provider: string };
+            setStorageProvider(storage.provider);
+          }
         } else {
           setIsAuthenticated(false);
         }
@@ -135,6 +144,15 @@ export function AdminPage() {
       if (!loggedIn) {
         toast.error("Login succeeded but session was not saved. Try again.");
         return;
+      }
+
+      const storageResponse = await fetch("/api/admin/storage", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (storageResponse.ok) {
+        const storage = (await storageResponse.json()) as { provider: string };
+        setStorageProvider(storage.provider);
       }
 
       toast.success("Admin access granted");
@@ -239,6 +257,9 @@ export function AdminPage() {
           <CardContent className="flex flex-wrap gap-2">
             <Badge variant="secondary">{stats.totalOrders} orders</Badge>
             <Badge variant="outline">{stats.totalLineItems} line items</Badge>
+            <Badge variant="outline">
+              Storage: {storageProvider === "supabase" ? "Supabase" : "Local server"}
+            </Badge>
           </CardContent>
         </Card>
 

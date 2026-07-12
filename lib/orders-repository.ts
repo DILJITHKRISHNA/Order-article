@@ -1,50 +1,37 @@
-import { promises as fs } from "node:fs";
-
 import type { CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
-import { getWritableDataFilePath } from "@/lib/server-data-path";
 import {
   createSubmittedOrderRecord,
   flattenSubmittedOrders,
   type OrdersDatabase,
 } from "@/lib/orders-utils";
+import {
+  appendSubmittedOrderToSupabase,
+  readSubmittedOrderRowsFromSupabase,
+  readSubmittedOrdersFromSupabase,
+} from "@/lib/supabase/orders-db";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
+import {
+  getLocalOrdersJsonBuffer,
+  ORDERS_JSON_FILENAME,
+  localOrdersStorageProvider,
+} from "@/lib/storage/providers/local-storage";
 
-export const ORDERS_JSON_FILENAME = "orders.json";
+export { ORDERS_JSON_FILENAME };
 
-const memoryDatabase: OrdersDatabase = { orders: [] };
-
-async function readDatabase(): Promise<OrdersDatabase> {
-  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
-
-  if (!filePath) {
-    return { orders: [...memoryDatabase.orders] };
-  }
-
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw) as OrdersDatabase;
-
-    if (!Array.isArray(parsed.orders)) {
-      return { orders: [...memoryDatabase.orders] };
-    }
-
-    memoryDatabase.orders = parsed.orders;
-    return parsed;
-  } catch {
-    return { orders: [...memoryDatabase.orders] };
-  }
+export function getActiveStorageName(): "supabase" | "local" {
+  return isSupabaseConfigured() ? "supabase" : "local";
 }
 
-async function writeDatabase(database: OrdersDatabase): Promise<void> {
-  memoryDatabase.orders = database.orders;
+export function isCloudStorageEnabled(): boolean {
+  return isSupabaseConfigured();
+}
 
-  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
-  if (!filePath) return;
+async function readLocalDatabase(): Promise<OrdersDatabase> {
+  return localOrdersStorageProvider.read();
+}
 
-  try {
-    await fs.writeFile(filePath, JSON.stringify(database, null, 2), "utf8");
-  } catch (error) {
-    console.error("Failed to persist orders to disk:", error);
-  }
+async function writeLocalDatabase(database: OrdersDatabase): Promise<void> {
+  await localOrdersStorageProvider.write(database);
 }
 
 export async function appendSubmittedOrder(
@@ -52,36 +39,41 @@ export async function appendSubmittedOrder(
   items: OrderLineItem[],
   submittedAt: string
 ): Promise<SubmittedOrderRecord> {
-  const database = await readDatabase();
+  if (isSupabaseConfigured()) {
+    return appendSubmittedOrderToSupabase(customer, items, submittedAt);
+  }
+
+  const database = await readLocalDatabase();
   const record = createSubmittedOrderRecord(customer, items, submittedAt);
 
   database.orders.push(record);
-  await writeDatabase(database);
+  await writeLocalDatabase(database);
 
   return record;
 }
 
 export async function readSubmittedOrders(): Promise<SubmittedOrderRecord[]> {
-  const database = await readDatabase();
+  if (isSupabaseConfigured()) {
+    return readSubmittedOrdersFromSupabase();
+  }
+
+  const database = await readLocalDatabase();
   return database.orders;
 }
 
 export async function readSubmittedOrderRows() {
+  if (isSupabaseConfigured()) {
+    return readSubmittedOrderRowsFromSupabase();
+  }
+
   const orders = await readSubmittedOrders();
   return flattenSubmittedOrders(orders);
 }
 
 export async function readOrdersJsonBuffer(): Promise<Buffer> {
-  const database = await readDatabase();
-  const filePath = await getWritableDataFilePath(ORDERS_JSON_FILENAME);
+  const database = isSupabaseConfigured()
+    ? { orders: await readSubmittedOrdersFromSupabase() }
+    : await readLocalDatabase();
 
-  if (filePath) {
-    try {
-      return await fs.readFile(filePath);
-    } catch {
-      // fall through to in-memory buffer
-    }
-  }
-
-  return Buffer.from(JSON.stringify(database, null, 2), "utf8");
+  return getLocalOrdersJsonBuffer(database);
 }

@@ -5,16 +5,47 @@ import { parseSku } from "@/lib/sku-parser";
 
 const ARTICLES_PATH = "/data/articles.xlsx";
 
-function findSkuColumn(rows: Record<string, unknown>[]): string | null {
-  if (rows.length === 0) return null;
+function normalizeColumnName(name: string): string {
+  return name.trim().toLowerCase();
+}
 
-  const firstRow = rows[0];
-  const keys = Object.keys(firstRow);
+function findColumn(
+  keys: string[],
+  candidates: string[]
+): string | null {
+  for (const candidate of candidates) {
+    const match = keys.find(
+      (key) => normalizeColumnName(key) === candidate.toLowerCase()
+    );
+    if (match) return match;
+  }
+  return null;
+}
 
-  const skuKey = keys.find((key) => key.trim().toLowerCase() === "sku");
-  if (skuKey) return skuKey;
+function cellToString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
 
-  return keys[0] ?? null;
+function parseRowFromSkuColumn(rawValue: unknown): ParsedSku | null {
+  const skuValue = cellToString(rawValue);
+  return parseSku(skuValue);
+}
+
+function parseRowFromSeparateColumns(
+  row: Record<string, unknown>,
+  articleColumn: string,
+  colorColumn: string,
+  sizeColumn: string
+): ParsedSku | null {
+  const article = cellToString(row[articleColumn]);
+  const color = cellToString(row[colorColumn]);
+  const size = cellToString(row[sizeColumn]);
+
+  if (!article || !color || !size) return null;
+
+  const sku = `${article}-${color}-${size}`;
+  return { sku, article, color, size };
 }
 
 function groupByArticle(variants: ParsedSku[]): ArticleGroup[] {
@@ -34,6 +65,41 @@ function groupByArticle(variants: ParsedSku[]): ArticleGroup[] {
       ),
     }))
     .sort((a, b) => a.articleNumber.localeCompare(b.articleNumber));
+}
+
+function parseRows(rows: Record<string, unknown>[]): ParsedSku[] {
+  if (rows.length === 0) return [];
+
+  const keys = Object.keys(rows[0]);
+  const skuColumn = findColumn(keys, ["sku"]);
+  const articleColumn = findColumn(keys, ["article", "article number", "articlenumber"]);
+  const colorColumn = findColumn(keys, ["color", "colour", "color code"]);
+  const sizeColumn = findColumn(keys, ["size"]);
+
+  const parsedVariants: ParsedSku[] = [];
+  const seenSkus = new Set<string>();
+
+  for (const row of rows) {
+    let parsed: ParsedSku | null = null;
+
+    if (skuColumn) {
+      parsed = parseRowFromSkuColumn(row[skuColumn]);
+    } else if (articleColumn && colorColumn && sizeColumn) {
+      parsed = parseRowFromSeparateColumns(
+        row,
+        articleColumn,
+        colorColumn,
+        sizeColumn
+      );
+    }
+
+    if (parsed && !seenSkus.has(parsed.sku)) {
+      seenSkus.add(parsed.sku);
+      parsedVariants.push(parsed);
+    }
+  }
+
+  return parsedVariants;
 }
 
 export async function loadArticlesFromExcel(): Promise<ArticleGroup[]> {
@@ -56,27 +122,12 @@ export async function loadArticlesFromExcel(): Promise<ArticleGroup[]> {
     defval: "",
   });
 
-  const skuColumn = findSkuColumn(rows);
-
-  if (!skuColumn) {
-    throw new Error("Could not find SKU column in articles file");
-  }
-
-  const parsedVariants: ParsedSku[] = [];
-
-  for (const row of rows) {
-    const rawValue = row[skuColumn];
-    const skuValue =
-      typeof rawValue === "number" ? String(rawValue) : String(rawValue ?? "");
-    const parsed = parseSku(skuValue);
-
-    if (parsed) {
-      parsedVariants.push(parsed);
-    }
-  }
+  const parsedVariants = parseRows(rows);
 
   if (parsedVariants.length === 0) {
-    throw new Error("No valid SKUs found in articles file");
+    throw new Error(
+      "No valid SKUs found in articles file. Expected a SKU column or ARTICLE, COLOR, and SIZE columns."
+    );
   }
 
   return groupByArticle(parsedVariants);

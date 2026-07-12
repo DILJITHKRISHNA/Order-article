@@ -65,14 +65,15 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
 
     setIsSubmitting(true);
     try {
-      const result = await submitOrderToAdmin(customer, items);
+      await submitOrderToAdmin(customer, items);
       toast.success("Order submitted successfully");
       resetOrder();
-      void result;
     } catch (error) {
-      toast.success("Order saved successfully");
-      resetOrder();
-      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? `${error.message} A local backup was saved on this device.`
+          : "Failed to submit order. A local backup was saved on this device."
+      );
     } finally {
       setIsSubmitting(false);
     }
