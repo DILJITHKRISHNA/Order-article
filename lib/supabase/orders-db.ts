@@ -11,6 +11,8 @@ interface SubmittedOrderItemRow {
   id: string;
   order_number: string;
   customer_name: string;
+  shop_name: string | null;
+  executive_name: string | null;
   location: string;
   phone_number: string;
   article: string;
@@ -25,6 +27,8 @@ function mapRowToAdminOrder(row: SubmittedOrderItemRow): AdminOrderRow {
   return {
     orderNumber: row.order_number,
     customerName: row.customer_name,
+    shopName: row.shop_name ?? "",
+    executiveName: row.executive_name ?? "",
     location: row.location,
     phoneNumber: row.phone_number,
     article: row.article,
@@ -63,6 +67,8 @@ function groupRowsIntoSubmittedOrders(
         {
           orderNumber: row.order_number,
           customerName: row.customer_name,
+          shopName: row.shop_name ?? "",
+          executiveName: row.executive_name ?? "",
           location: row.location,
           phoneNumber: row.phone_number,
         },
@@ -85,6 +91,8 @@ export async function appendSubmittedOrderToSupabase(
   const rows = items.map((item) => ({
     order_number: customer.orderNumber,
     customer_name: customer.customerName,
+    shop_name: customer.shopName,
+    executive_name: customer.executiveName,
     location: customer.location,
     phone_number: customer.phoneNumber,
     article: item.article,

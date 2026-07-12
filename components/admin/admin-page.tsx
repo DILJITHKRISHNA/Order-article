@@ -278,6 +278,8 @@ export function AdminPage() {
                   <TableRow>
                     <TableHead>Order #</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Shop</TableHead>
+                    <TableHead>Executive</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Article</TableHead>
@@ -292,6 +294,8 @@ export function AdminPage() {
                     <TableRow key={`${order.orderNumber}-${order.article}-${order.color}-${order.size}-${index}`}>
                       <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
+                      <TableCell>{order.shopName || "-"}</TableCell>
+                      <TableCell>{order.executiveName || "-"}</TableCell>
                       <TableCell>{order.location}</TableCell>
                       <TableCell>{order.phoneNumber}</TableCell>
                       <TableCell>{order.article}</TableCell>

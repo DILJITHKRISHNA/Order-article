@@ -3,6 +3,8 @@ import { z } from "zod";
 export const customerSchema = z.object({
   orderNumber: z.string().min(1, "Order number is required"),
   customerName: z.string().min(1, "Customer name is required"),
+  shopName: z.string(),
+  executiveName: z.string(),
   location: z.string().min(1, "Location is required"),
   phoneNumber: z
     .string()

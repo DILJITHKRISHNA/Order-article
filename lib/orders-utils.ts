@@ -9,6 +9,8 @@ export function flattenSubmittedOrders(
 ): Array<{
   orderNumber: string;
   customerName: string;
+  shopName: string;
+  executiveName: string;
   location: string;
   phoneNumber: string;
   article: string;
@@ -24,6 +26,8 @@ export function flattenSubmittedOrders(
       rows.push({
         orderNumber: order.customer.orderNumber,
         customerName: order.customer.customerName,
+        shopName: order.customer.shopName,
+        executiveName: order.customer.executiveName,
         location: order.customer.location,
         phoneNumber: order.customer.phoneNumber,
         article: item.article,

@@ -8,6 +8,8 @@ export const ADMIN_ORDERS_FILENAME = "admin-orders.xlsx";
 export const ADMIN_ORDER_COLUMNS = [
   "Order Number",
   "Customer Name",
+  "Shop Name",
+  "Executive Name",
   "Location",
   "Phone Number",
   "Article",
@@ -20,6 +22,8 @@ export const ADMIN_ORDER_COLUMNS = [
 export type AdminOrderRow = {
   orderNumber: string;
   customerName: string;
+  shopName: string;
+  executiveName: string;
   location: string;
   phoneNumber: string;
   article: string;
@@ -44,12 +48,14 @@ function configureSheetColumns(sheet: ExcelJS.Worksheet) {
   sheet.getColumn(1).width = 16;
   sheet.getColumn(2).width = 22;
   sheet.getColumn(3).width = 18;
-  sheet.getColumn(4).width = 16;
-  sheet.getColumn(5).width = 12;
-  sheet.getColumn(6).width = 10;
-  sheet.getColumn(7).width = 8;
-  sheet.getColumn(8).width = 8;
-  sheet.getColumn(9).width = 22;
+  sheet.getColumn(4).width = 18;
+  sheet.getColumn(5).width = 18;
+  sheet.getColumn(6).width = 16;
+  sheet.getColumn(7).width = 12;
+  sheet.getColumn(8).width = 10;
+  sheet.getColumn(9).width = 8;
+  sheet.getColumn(10).width = 8;
+  sheet.getColumn(11).width = 22;
 }
 
 async function buildAdminWorkbook(
@@ -69,6 +75,8 @@ async function buildAdminWorkbook(
     sheet.addRow([
       row.orderNumber,
       row.customerName,
+      row.shopName,
+      row.executiveName,
       row.location,
       row.phoneNumber,
       row.article,

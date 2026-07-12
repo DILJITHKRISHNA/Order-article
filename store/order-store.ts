@@ -51,6 +51,8 @@ function buildInitialCustomer(): CustomerDetails {
   return {
     orderNumber: generateOrderNumber(),
     customerName: "",
+    shopName: "",
+    executiveName: "",
     location: "",
     phoneNumber: "",
   };

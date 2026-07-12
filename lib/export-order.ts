@@ -40,6 +40,8 @@ export async function exportOrderToExcel(
   const customerRows: [string, string][] = [
     ["Order Number", customer.orderNumber],
     ["Customer Name", customer.customerName],
+    ["Shop Name", customer.shopName || "-"],
+    ["Executive Name", customer.executiveName || "-"],
     ["Location", customer.location],
     ["Phone Number", customer.phoneNumber],
   ];

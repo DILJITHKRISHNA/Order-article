@@ -1,6 +1,8 @@
 export interface CustomerDetails {
   orderNumber: string;
   customerName: string;
+  shopName: string;
+  executiveName: string;
   location: string;
   phoneNumber: string;
 }
@@ -35,6 +37,8 @@ export interface SubmittedOrderRecord {
 export interface AdminOrderRow {
   orderNumber: string;
   customerName: string;
+  shopName: string;
+  executiveName: string;
   location: string;
   phoneNumber: string;
   article: string;

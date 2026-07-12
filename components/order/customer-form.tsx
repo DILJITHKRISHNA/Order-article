@@ -25,7 +25,7 @@ export function CustomerForm() {
   });
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="space-y-2">
         <Label htmlFor="orderNumber">Order Number</Label>
         <Input
@@ -54,6 +54,29 @@ export function CustomerForm() {
             {errors.customerName.message}
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="shopName">Shop Name</Label>
+        <Input
+          id="shopName"
+          placeholder="Shop name (optional)"
+          {...register("shopName", {
+            onChange: (event) => setCustomer({ shopName: event.target.value }),
+          })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="executiveName">Executive Name</Label>
+        <Input
+          id="executiveName"
+          placeholder="Executive name (optional)"
+          {...register("executiveName", {
+            onChange: (event) =>
+              setCustomer({ executiveName: event.target.value }),
+          })}
+        />
       </div>
 
       <div className="space-y-2">
