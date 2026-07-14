@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Download, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,17 +23,12 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customer = useOrderStore((state) => state.customer);
-  const sections = useOrderStore((state) => state.sections);
-  const activeSectionId = useOrderStore((state) => state.activeSectionId);
+  const rows = useOrderStore((state) => state.rows);
+  const selectedArticleNumber = useOrderStore(
+    (state) => state.selectedArticleNumber
+  );
   const selectArticle = useOrderStore((state) => state.selectArticle);
   const resetOrder = useOrderStore((state) => state.resetOrder);
-
-  const activeArticleNumber = useMemo(() => {
-    const activeSection =
-      sections.find((section) => section.id === activeSectionId) ??
-      sections.at(-1);
-    return activeSection?.articleNumber ?? null;
-  }, [sections, activeSectionId]);
 
   const handleArticleSelect = (articleNumber: string) => {
     const selected = selectArticle(articleNumber);
@@ -49,7 +44,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
       return;
     }
 
-    const items = selectOrderLineItems(sections, catalog);
+    const items = selectOrderLineItems(rows, catalog);
     if (items.length === 0) {
       toast.error("Add items with quantity before submitting");
       return;
@@ -86,7 +81,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
       return;
     }
 
-    const items = selectOrderLineItems(sections, catalog);
+    const items = selectOrderLineItems(rows, catalog);
     if (items.length === 0) {
       toast.error("Add items with quantity before exporting");
       return;
@@ -114,7 +109,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
         <span className="text-base font-bold">Select Article</span>
         <ArticleCombobox
           catalog={catalog}
-          value={activeArticleNumber}
+          value={selectedArticleNumber}
           onSelect={handleArticleSelect}
           placeholder="Search article number..."
         />

@@ -3,21 +3,18 @@ import { create } from "zustand";
 import { getArticleGroup } from "@/lib/articles-loader";
 import { generateOrderNumber } from "@/lib/order-number";
 import {
+  buildOrderRowKey,
+  getAvailableSizesForRow,
   selectOrderLineItems,
   selectTotalPairs,
-  selectUsedArticleNumbers,
 } from "@/lib/order-selectors";
 import type { ArticleGroup } from "@/types/article";
-import type {
-  ArticleSection,
-  CustomerDetails,
-  OrderLineItem,
-} from "@/types/order";
+import type { CustomerDetails, OrderLineItem, OrderRow } from "@/types/order";
 
 interface OrderState {
   customer: CustomerDetails;
-  sections: ArticleSection[];
-  activeSectionId: string | null;
+  selectedArticleNumber: string | null;
+  rows: OrderRow[];
   catalog: ArticleGroup[];
   catalogLoaded: boolean;
   catalogError: string | null;
@@ -26,25 +23,17 @@ interface OrderState {
   setCatalog: (catalog: ArticleGroup[]) => void;
   setCatalogError: (error: string | null) => void;
   selectArticle: (articleNumber: string) => boolean;
-  addSection: (articleNumber: string) => boolean;
-  removeSection: (sectionId: string) => void;
-  updateSectionArticle: (sectionId: string, articleNumber: string) => boolean;
-  setQuantity: (sectionId: string, sku: string, qty: number) => void;
-  incrementQuantity: (sectionId: string, sku: string) => void;
-  decrementQuantity: (sectionId: string, sku: string) => void;
+  toggleOrderRow: (article: string, color: string, sizeRange: string) => void;
+  removeOrderRow: (rowId: string) => void;
+  setRowSize: (rowId: string, size: string) => void;
+  setRowQty: (rowId: string, qty: number) => void;
+  incrementRowQty: (rowId: string) => void;
+  decrementRowQty: (rowId: string) => void;
   resetOrder: () => void;
-  hydrateOrder: (customer: CustomerDetails, sections: ArticleSection[]) => void;
-  getUsedArticleNumbers: () => string[];
+  hydrateOrder: (customer: CustomerDetails, rows: OrderRow[]) => void;
   getOrderLineItems: () => OrderLineItem[];
   getTotalPairs: () => number;
-}
-
-function createEmptySection(articleNumber: string): ArticleSection {
-  return {
-    id: crypto.randomUUID(),
-    articleNumber,
-    quantities: {},
-  };
+  isRowChecked: (article: string, color: string, sizeRange: string) => boolean;
 }
 
 function buildInitialCustomer(): CustomerDetails {
@@ -62,10 +51,32 @@ function clampQty(qty: number): number {
   return Math.max(0, qty);
 }
 
+function createOrderRow(
+  article: string,
+  color: string,
+  sizeRange: string,
+  catalog: ArticleGroup[]
+): OrderRow {
+  const draftRow: OrderRow = {
+    id: crypto.randomUUID(),
+    article,
+    color,
+    sizeRange,
+    selectedSize: "",
+    qty: 0,
+  };
+  const availableSizes = getAvailableSizesForRow(draftRow, catalog);
+
+  return {
+    ...draftRow,
+    selectedSize: availableSizes[0] ?? "",
+  };
+}
+
 export const useOrderStore = create<OrderState>((set, get) => ({
   customer: buildInitialCustomer(),
-  sections: [],
-  activeSectionId: null,
+  selectedArticleNumber: null,
+  rows: [],
   catalog: [],
   catalogLoaded: false,
   catalogError: null,
@@ -88,134 +99,88 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       catalogLoaded: true,
     }),
 
-  addSection: (articleNumber) => {
-    const { catalog, sections } = get();
+  selectArticle: (articleNumber) => {
+    const { catalog } = get();
     const article = getArticleGroup(catalog, articleNumber);
 
     if (!article) return false;
-    if (sections.some((section) => section.articleNumber === articleNumber)) {
-      return false;
-    }
 
-    const newSection = createEmptySection(articleNumber);
-
-    set((state) => ({
-      sections: [...state.sections, newSection],
-      activeSectionId: newSection.id,
-    }));
-
+    set({ selectedArticleNumber: articleNumber });
     return true;
   },
 
-  selectArticle: (articleNumber) => {
-    const { catalog, sections } = get();
-    const article = getArticleGroup(catalog, articleNumber);
-
-    if (!article) return false;
-
-    const existing = sections.find(
-      (section) => section.articleNumber === articleNumber
+  toggleOrderRow: (article, color, sizeRange) => {
+    const { rows, catalog } = get();
+    const rowKey = buildOrderRowKey(article, color, sizeRange);
+    const existing = rows.find(
+      (row) =>
+        buildOrderRowKey(row.article, row.color, row.sizeRange) === rowKey
     );
 
     if (existing) {
-      set({ activeSectionId: existing.id });
-      return true;
+      set({ rows: rows.filter((row) => row.id !== existing.id) });
+      return;
     }
 
-    const newSection = createEmptySection(articleNumber);
-
-    set((state) => ({
-      sections: [...state.sections, newSection],
-      activeSectionId: newSection.id,
-    }));
-
-    return true;
+    set({
+      rows: [...rows, createOrderRow(article, color, sizeRange, catalog)],
+    });
   },
 
-  removeSection: (sectionId) =>
-    set((state) => {
-      const sections = state.sections.filter(
-        (section) => section.id !== sectionId
-      );
-      const activeSectionId =
-        state.activeSectionId === sectionId
-          ? (sections.at(-1)?.id ?? null)
-          : state.activeSectionId;
-
-      return { sections, activeSectionId };
-    }),
-
-  updateSectionArticle: (sectionId, articleNumber) => {
-    const { catalog, sections } = get();
-    const article = getArticleGroup(catalog, articleNumber);
-
-    if (!article) return false;
-    if (
-      sections.some(
-        (section) =>
-          section.articleNumber === articleNumber && section.id !== sectionId
-      )
-    ) {
-      return false;
-    }
-
+  removeOrderRow: (rowId) =>
     set((state) => ({
-      sections: state.sections.map((section) =>
-        section.id === sectionId
-          ? { ...section, articleNumber, quantities: {} }
-          : section
-      ),
-      activeSectionId: sectionId,
-    }));
+      rows: state.rows.filter((row) => row.id !== rowId),
+    })),
 
-    return true;
-  },
-
-  setQuantity: (sectionId, sku, qty) =>
+  setRowSize: (rowId, size) =>
     set((state) => ({
-      sections: state.sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              quantities: {
-                ...section.quantities,
-                [sku]: clampQty(qty),
-              },
-            }
-          : section
+      rows: state.rows.map((row) =>
+        row.id === rowId ? { ...row, selectedSize: size } : row
       ),
     })),
 
-  incrementQuantity: (sectionId, sku) => {
-    const section = get().sections.find((item) => item.id === sectionId);
-    const current = section?.quantities[sku] ?? 0;
-    get().setQuantity(sectionId, sku, current + 1);
+  setRowQty: (rowId, qty) =>
+    set((state) => ({
+      rows: state.rows.map((row) =>
+        row.id === rowId ? { ...row, qty: clampQty(qty) } : row
+      ),
+    })),
+
+  incrementRowQty: (rowId) => {
+    const row = get().rows.find((item) => item.id === rowId);
+    const current = row?.qty ?? 0;
+    get().setRowQty(rowId, current + 1);
   },
 
-  decrementQuantity: (sectionId, sku) => {
-    const section = get().sections.find((item) => item.id === sectionId);
-    const current = section?.quantities[sku] ?? 0;
-    get().setQuantity(sectionId, sku, current - 1);
+  decrementRowQty: (rowId) => {
+    const row = get().rows.find((item) => item.id === rowId);
+    const current = row?.qty ?? 0;
+    get().setRowQty(rowId, current - 1);
   },
 
   resetOrder: () =>
     set({
       customer: buildInitialCustomer(),
-      sections: [],
-      activeSectionId: null,
+      selectedArticleNumber: null,
+      rows: [],
     }),
 
-  hydrateOrder: (customer, sections) =>
+  hydrateOrder: (customer, rows) =>
     set({
       customer,
-      sections,
-      activeSectionId: sections.at(-1)?.id ?? null,
+      rows,
+      selectedArticleNumber: rows.at(-1)?.article ?? null,
     }),
 
-  getUsedArticleNumbers: () => selectUsedArticleNumbers(get().sections),
+  isRowChecked: (article, color, sizeRange) => {
+    const rowKey = buildOrderRowKey(article, color, sizeRange);
+    return get().rows.some(
+      (row) =>
+        buildOrderRowKey(row.article, row.color, row.sizeRange) === rowKey
+    );
+  },
 
-  getOrderLineItems: () =>
-    selectOrderLineItems(get().sections, get().catalog),
+  getOrderLineItems: () => selectOrderLineItems(get().rows, get().catalog),
 
-  getTotalPairs: () => selectTotalPairs(get().sections, get().catalog),
+  getTotalPairs: () => selectTotalPairs(get().rows, get().catalog),
 }));

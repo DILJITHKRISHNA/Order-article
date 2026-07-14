@@ -1,44 +1,85 @@
 import { getArticleGroup } from "@/lib/articles-loader";
+import { sizeMatchesRange } from "@/lib/size-range";
 import type { ArticleGroup } from "@/types/article";
-import type { ArticleSection, OrderLineItem } from "@/types/order";
+import type { OrderLineItem, OrderRow } from "@/types/order";
+
+export function getAvailableSizesForRow(
+  row: OrderRow,
+  catalog: ArticleGroup[]
+): string[] {
+  const article = getArticleGroup(catalog, row.article);
+  if (!article) return [];
+
+  return article.splitVariants
+    .filter(
+      (variant) =>
+        variant.color === row.color &&
+        sizeMatchesRange(variant.size, row.sizeRange)
+    )
+    .map((variant) => variant.size)
+    .filter((size, index, sizes) => sizes.indexOf(size) === index)
+    .sort((a, b) => Number(a) - Number(b));
+}
 
 export function selectOrderLineItems(
-  sections: ArticleSection[],
+  rows: OrderRow[],
   catalog: ArticleGroup[]
 ): OrderLineItem[] {
   const items: OrderLineItem[] = [];
 
-  for (const section of sections) {
-    const article = getArticleGroup(catalog, section.articleNumber);
-    if (!article) continue;
+  for (const row of rows) {
+    if (!row.selectedSize || row.qty <= 0) continue;
 
-    for (const variant of article.variants) {
-      const qty = section.quantities[variant.sku] ?? 0;
-      if (qty > 0) {
-        items.push({
-          article: variant.article,
-          color: variant.color,
-          size: variant.size,
-          qty,
-          sku: variant.sku,
-        });
-      }
-    }
+    const availableSizes = getAvailableSizesForRow(row, catalog);
+    if (!availableSizes.includes(row.selectedSize)) continue;
+
+    items.push({
+      article: row.article,
+      color: row.color,
+      size: row.selectedSize,
+      qty: row.qty,
+      sku: `${row.article}-${row.color}-${row.selectedSize}`,
+    });
   }
 
   return items;
 }
 
 export function selectTotalPairs(
-  sections: ArticleSection[],
+  rows: OrderRow[],
   catalog: ArticleGroup[]
 ): number {
-  return selectOrderLineItems(sections, catalog).reduce(
+  return selectOrderLineItems(rows, catalog).reduce(
     (total, item) => total + item.qty,
     0
   );
 }
 
-export function selectUsedArticleNumbers(sections: ArticleSection[]): string[] {
-  return sections.map((section) => section.articleNumber);
+export function buildOrderRowKey(
+  article: string,
+  color: string,
+  sizeRange: string
+): string {
+  return `${article}-${color}-${sizeRange}`;
+}
+
+export function groupSizeVariantsByColor(
+  variants: { article: string; color: string; size: string; sku: string }[]
+): { color: string; sizes: string[] }[] {
+  const map = new Map<string, Set<string>>();
+
+  for (const variant of variants) {
+    const sizes = map.get(variant.color) ?? new Set<string>();
+    sizes.add(variant.size);
+    map.set(variant.color, sizes);
+  }
+
+  return Array.from(map.entries())
+    .map(([color, sizes]) => ({
+      color,
+      sizes: Array.from(sizes).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true })
+      ),
+    }))
+    .sort((a, b) => a.color.localeCompare(b.color));
 }

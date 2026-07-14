@@ -56,7 +56,11 @@ function ErrorState({ message }: { message: string }) {
 
 export function OrderPage() {
   const { catalog, isLoading, error } = useArticles();
-  const sections = useOrderStore((state) => state.sections);
+  const selectedArticleNumber = useOrderStore(
+    (state) => state.selectedArticleNumber
+  );
+  const rows = useOrderStore((state) => state.rows);
+  const showWorkspace = Boolean(selectedArticleNumber) || rows.length > 0;
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -86,14 +90,19 @@ export function OrderPage() {
               <CardHeader>
                 <CardTitle className="text-lg font-bold">Articles</CardTitle>
                 <CardDescription>
-                  Search by article number and set quantities for the selected
-                  article. All added articles appear in the order summary.
+                  Search an article, pick colors and sizes like 6X10 or 11X12,
+                  then set quantities in the order summary.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <OrderToolbar catalog={catalog} />
 
-                {sections.length === 0 ? (
+                {showWorkspace ? (
+                  <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+                    <ActiveArticlePanel catalog={catalog} />
+                    <OrderSummary />
+                  </div>
+                ) : (
                   <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-background px-6 py-16 text-center">
                     <PackageSearch className="mb-3 size-10 text-muted-foreground" />
                     <h3 className="text-sm font-medium">No articles added</h3>
@@ -101,11 +110,6 @@ export function OrderPage() {
                       Search for an article number above to start building your
                       order.
                     </p>
-                  </div>
-                ) : (
-                  <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-                    <ActiveArticlePanel catalog={catalog} />
-                    <OrderSummary />
                   </div>
                 )}
               </CardContent>

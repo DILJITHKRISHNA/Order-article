@@ -90,7 +90,7 @@ export function ArticleCombobox({
                     />
                     <span className="font-medium">{article.articleNumber}</span>
                     <span className="text-muted-foreground">
-                      {article.variants.length} variants
+                      {article.sizeVariants.length} size ranges
                     </span>
                   </CommandItem>
                 );

@@ -7,5 +7,8 @@ export interface ParsedSku {
 
 export interface ArticleGroup {
   articleNumber: string;
-  variants: ParsedSku[];
+  /** Size ranges from the "size" sheet (e.g. 6X10). */
+  sizeVariants: ParsedSku[];
+  /** Individual sizes from the "split" sheet (e.g. 6, 7, 8). */
+  splitVariants: ParsedSku[];
 }

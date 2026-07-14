@@ -7,11 +7,13 @@ export interface CustomerDetails {
   phoneNumber: string;
 }
 
-export interface ArticleSection {
+export interface OrderRow {
   id: string;
-  articleNumber: string;
-  /** SKU -> quantity */
-  quantities: Record<string, number>;
+  article: string;
+  color: string;
+  sizeRange: string;
+  selectedSize: string;
+  qty: number;
 }
 
 export interface OrderLineItem {
@@ -24,7 +26,7 @@ export interface OrderLineItem {
 
 export interface SavedOrder {
   customer: CustomerDetails;
-  sections: ArticleSection[];
+  rows: OrderRow[];
   savedAt: string;
 }
 
