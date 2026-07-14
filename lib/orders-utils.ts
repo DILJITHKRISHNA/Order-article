@@ -4,6 +4,10 @@ export interface OrdersDatabase {
   orders: SubmittedOrderRecord[];
 }
 
+export function filterOrderedItems(items: OrderLineItem[]): OrderLineItem[] {
+  return items.filter((item) => item.qty > 0);
+}
+
 export function flattenSubmittedOrders(
   orders: SubmittedOrderRecord[]
 ): Array<{
@@ -23,6 +27,8 @@ export function flattenSubmittedOrders(
 
   for (const order of orders) {
     for (const item of order.items) {
+      if (item.qty <= 0) continue;
+
       rows.push({
         orderNumber: order.customer.orderNumber,
         customerName: order.customer.customerName,

@@ -1,6 +1,7 @@
 import type { CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
 import {
   createSubmittedOrderRecord,
+  filterOrderedItems,
   flattenSubmittedOrders,
   type OrdersDatabase,
 } from "@/lib/orders-utils";
@@ -39,12 +40,18 @@ export async function appendSubmittedOrder(
   items: OrderLineItem[],
   submittedAt: string
 ): Promise<SubmittedOrderRecord> {
+  const orderedItems = filterOrderedItems(items);
+
+  if (orderedItems.length === 0) {
+    throw new Error("Order must include at least one item with quantity greater than zero");
+  }
+
   if (isSupabaseConfigured()) {
-    return appendSubmittedOrderToSupabase(customer, items, submittedAt);
+    return appendSubmittedOrderToSupabase(customer, orderedItems, submittedAt);
   }
 
   const database = await readLocalDatabase();
-  const record = createSubmittedOrderRecord(customer, items, submittedAt);
+  const record = createSubmittedOrderRecord(customer, orderedItems, submittedAt);
 
   database.orders.push(record);
   await writeLocalDatabase(database);

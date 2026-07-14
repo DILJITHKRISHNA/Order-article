@@ -45,6 +45,8 @@ function groupRowsIntoSubmittedOrders(
   const grouped = new Map<string, SubmittedOrderRecord>();
 
   for (const row of rows) {
+    if (row.qty <= 0) continue;
+
     const key = `${row.order_number}-${row.submitted_at}`;
     const existing = grouped.get(key);
 
@@ -124,7 +126,9 @@ export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRo
     throw new Error(`Supabase read failed: ${error.message}`);
   }
 
-  return ((data ?? []) as SubmittedOrderItemRow[]).map(mapRowToAdminOrder);
+  return ((data ?? []) as SubmittedOrderItemRow[])
+    .filter((row) => row.qty > 0)
+    .map(mapRowToAdminOrder);
 }
 
 export async function readSubmittedOrdersFromSupabase(): Promise<SubmittedOrderRecord[]> {
