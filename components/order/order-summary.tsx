@@ -67,10 +67,6 @@ export function OrderSummary() {
           </span>
           <Badge variant="secondary">{totalPairs} pairs</Badge>
         </CardTitle>
-        <CardDescription>
-          Quantity 0 means not ordered. Only sizes with quantity greater than 0
-          are submitted and shown in admin.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {rows.length === 0 ? (
