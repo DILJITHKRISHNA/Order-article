@@ -12,7 +12,7 @@ export interface OrderRow {
   article: string;
   color: string;
   sizeRange: string;
-  selectedSize: string;
+  size: string;
   qty: number;
 }
 

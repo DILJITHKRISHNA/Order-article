@@ -14,13 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -28,20 +21,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  getAvailableSizesForRow,
-  selectOrderLineItems,
-  selectTotalPairs,
-} from "@/lib/order-selectors";
+import { selectOrderLineItems, selectTotalPairs } from "@/lib/order-selectors";
 import { useOrderStore } from "@/store/order-store";
 
 export function OrderSummary() {
   const rows = useOrderStore((state) => state.rows);
   const catalog = useOrderStore((state) => state.catalog);
   const removeOrderRow = useOrderStore((state) => state.removeOrderRow);
-  const setRowSize = useOrderStore((state) => state.setRowSize);
   const incrementRowQty = useOrderStore((state) => state.incrementRowQty);
   const decrementRowQty = useOrderStore((state) => state.decrementRowQty);
+
+  const sortedRows = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const articleCompare = a.article.localeCompare(b.article, undefined, {
+          numeric: true,
+        });
+        if (articleCompare !== 0) return articleCompare;
+
+        const colorCompare = a.color.localeCompare(b.color);
+        if (colorCompare !== 0) return colorCompare;
+
+        return Number(a.size) - Number(b.size);
+      }),
+    [rows]
+  );
 
   const lineItems = useMemo(
     () => selectOrderLineItems(rows, catalog),
@@ -63,8 +67,8 @@ export function OrderSummary() {
           <Badge variant="secondary">{totalPairs} pairs</Badge>
         </CardTitle>
         <CardDescription>
-          Choose the exact size from the dropdown and set the quantity for each
-          line.
+          Each size appears on its own line. Set the quantity for every size you
+          want to order.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -84,57 +88,31 @@ export function OrderSummary() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
-                const availableSizes = getAvailableSizesForRow(row, catalog);
-
-                return (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.article}</TableCell>
-                    <TableCell>{row.color}</TableCell>
-                    <TableCell>
-                      {availableSizes.length > 0 ? (
-                        <Select
-                          value={row.selectedSize}
-                          onValueChange={(value) => {
-                            if (value) setRowSize(row.id, value);
-                          }}
-                        >
-                          <SelectTrigger size="sm" className="w-full min-w-20">
-                            <SelectValue placeholder="Size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableSizes.map((size) => (
-                              <SelectItem key={size} value={size}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <QuantityControl
-                        value={row.qty}
-                        onIncrement={() => incrementRowQty(row.id)}
-                        onDecrement={() => decrementRowQty(row.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => removeOrderRow(row.id)}
-                        aria-label="Remove line"
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {sortedRows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">{row.article}</TableCell>
+                  <TableCell>{row.color}</TableCell>
+                  <TableCell>{row.size}</TableCell>
+                  <TableCell className="text-right">
+                    <QuantityControl
+                      value={row.qty}
+                      onIncrement={() => incrementRowQty(row.id)}
+                      onDecrement={() => decrementRowQty(row.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => removeOrderRow(row.id)}
+                      aria-label="Remove line"
+                    >
+                      <Trash2 />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

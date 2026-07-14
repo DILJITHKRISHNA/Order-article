@@ -4,7 +4,7 @@ import { getArticleGroup } from "@/lib/articles-loader";
 import { generateOrderNumber } from "@/lib/order-number";
 import {
   buildOrderRowKey,
-  getAvailableSizesForRow,
+  getSplitSizesForRange,
   selectOrderLineItems,
   selectTotalPairs,
 } from "@/lib/order-selectors";
@@ -25,7 +25,6 @@ interface OrderState {
   selectArticle: (articleNumber: string) => boolean;
   toggleOrderRow: (article: string, color: string, sizeRange: string) => void;
   removeOrderRow: (rowId: string) => void;
-  setRowSize: (rowId: string, size: string) => void;
   setRowQty: (rowId: string, qty: number) => void;
   incrementRowQty: (rowId: string) => void;
   decrementRowQty: (rowId: string) => void;
@@ -51,26 +50,22 @@ function clampQty(qty: number): number {
   return Math.max(0, qty);
 }
 
-function createOrderRow(
+function createOrderRowsForRange(
   article: string,
   color: string,
   sizeRange: string,
   catalog: ArticleGroup[]
-): OrderRow {
-  const draftRow: OrderRow = {
+): OrderRow[] {
+  const splitSizes = getSplitSizesForRange(article, color, sizeRange, catalog);
+
+  return splitSizes.map((size) => ({
     id: crypto.randomUUID(),
     article,
     color,
     sizeRange,
-    selectedSize: "",
+    size,
     qty: 0,
-  };
-  const availableSizes = getAvailableSizesForRow(draftRow, catalog);
-
-  return {
-    ...draftRow,
-    selectedSize: availableSizes[0] ?? "",
-  };
+  }));
 }
 
 export const useOrderStore = create<OrderState>((set, get) => ({
@@ -112,31 +107,32 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   toggleOrderRow: (article, color, sizeRange) => {
     const { rows, catalog } = get();
     const rowKey = buildOrderRowKey(article, color, sizeRange);
-    const existing = rows.find(
+    const hasRows = rows.some(
       (row) =>
         buildOrderRowKey(row.article, row.color, row.sizeRange) === rowKey
     );
 
-    if (existing) {
-      set({ rows: rows.filter((row) => row.id !== existing.id) });
+    if (hasRows) {
+      set({
+        rows: rows.filter(
+          (row) =>
+            buildOrderRowKey(row.article, row.color, row.sizeRange) !== rowKey
+        ),
+      });
       return;
     }
 
     set({
-      rows: [...rows, createOrderRow(article, color, sizeRange, catalog)],
+      rows: [
+        ...rows,
+        ...createOrderRowsForRange(article, color, sizeRange, catalog),
+      ],
     });
   },
 
   removeOrderRow: (rowId) =>
     set((state) => ({
       rows: state.rows.filter((row) => row.id !== rowId),
-    })),
-
-  setRowSize: (rowId, size) =>
-    set((state) => ({
-      rows: state.rows.map((row) =>
-        row.id === rowId ? { ...row, selectedSize: size } : row
-      ),
     })),
 
   setRowQty: (rowId, qty) =>

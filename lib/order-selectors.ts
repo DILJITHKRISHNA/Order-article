@@ -3,18 +3,19 @@ import { sizeMatchesRange } from "@/lib/size-range";
 import type { ArticleGroup } from "@/types/article";
 import type { OrderLineItem, OrderRow } from "@/types/order";
 
-export function getAvailableSizesForRow(
-  row: OrderRow,
+export function getSplitSizesForRange(
+  article: string,
+  color: string,
+  sizeRange: string,
   catalog: ArticleGroup[]
 ): string[] {
-  const article = getArticleGroup(catalog, row.article);
-  if (!article) return [];
+  const articleGroup = getArticleGroup(catalog, article);
+  if (!articleGroup) return [];
 
-  return article.splitVariants
+  return articleGroup.splitVariants
     .filter(
       (variant) =>
-        variant.color === row.color &&
-        sizeMatchesRange(variant.size, row.sizeRange)
+        variant.color === color && sizeMatchesRange(variant.size, sizeRange)
     )
     .map((variant) => variant.size)
     .filter((size, index, sizes) => sizes.indexOf(size) === index)
@@ -28,17 +29,22 @@ export function selectOrderLineItems(
   const items: OrderLineItem[] = [];
 
   for (const row of rows) {
-    if (!row.selectedSize || row.qty <= 0) continue;
+    if (!row.size || row.qty <= 0) continue;
 
-    const availableSizes = getAvailableSizesForRow(row, catalog);
-    if (!availableSizes.includes(row.selectedSize)) continue;
+    const availableSizes = getSplitSizesForRange(
+      row.article,
+      row.color,
+      row.sizeRange,
+      catalog
+    );
+    if (!availableSizes.includes(row.size)) continue;
 
     items.push({
       article: row.article,
       color: row.color,
-      size: row.selectedSize,
+      size: row.size,
       qty: row.qty,
-      sku: `${row.article}-${row.color}-${row.selectedSize}`,
+      sku: `${row.article}-${row.color}-${row.size}`,
     });
   }
 
