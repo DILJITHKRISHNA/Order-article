@@ -26,10 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  getLocalSubmittedOrderRows,
-  mergeSubmittedOrders,
-} from "@/lib/client-orders";
 import type { AdminOrderRow } from "@/types/order";
 
 interface AdminOrdersResponse {
@@ -78,12 +74,7 @@ export function AdminPage() {
     }
 
     const data = (await response.json()) as AdminOrdersResponse;
-    const mergedOrders = mergeSubmittedOrders(
-      data.orders,
-      getLocalSubmittedOrderRows()
-    );
-
-    applyOrders(mergedOrders);
+    applyOrders(data.orders);
     return true;
   }, [applyOrders]);
 

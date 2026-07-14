@@ -4,7 +4,11 @@ import type {
   OrderLineItem,
   SubmittedOrderRecord,
 } from "@/types/order";
-import { createSubmittedOrderRecord } from "@/lib/orders-utils";
+import {
+  createSubmittedOrderRecord,
+  dedupeOrderLineItems,
+  filterOrderedItems,
+} from "@/lib/orders-utils";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 interface SubmittedOrderItemRow {
@@ -89,8 +93,23 @@ export async function appendSubmittedOrderToSupabase(
   submittedAt: string
 ): Promise<SubmittedOrderRecord> {
   const supabase = createSupabaseAdminClient();
+  const orderedItems = dedupeOrderLineItems(filterOrderedItems(items));
 
-  const rows = items.map((item) => ({
+  const { data: existingOrder, error: existingError } = await supabase
+    .from("submitted_order_items")
+    .select("order_number")
+    .eq("order_number", customer.orderNumber)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(`Supabase duplicate check failed: ${existingError.message}`);
+  }
+
+  if ((existingOrder ?? []).length > 0) {
+    throw new Error("This order has already been submitted");
+  }
+
+  const rows = orderedItems.map((item) => ({
     order_number: customer.orderNumber,
     customer_name: customer.customerName,
     shop_name: customer.shopName,
@@ -111,7 +130,7 @@ export async function appendSubmittedOrderToSupabase(
     throw new Error(`Supabase insert failed: ${error.message}`);
   }
 
-  return createSubmittedOrderRecord(customer, items, submittedAt);
+  return createSubmittedOrderRecord(customer, orderedItems, submittedAt);
 }
 
 export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRow[]> {

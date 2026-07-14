@@ -52,18 +52,17 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
 
     const submittedAt = new Date().toISOString();
 
-    saveSubmittedOrderToStorage({
-      customer,
-      items,
-      submittedAt,
-    });
-
     setIsSubmitting(true);
     try {
       await submitOrderToAdmin(customer, items);
       toast.success("Order submitted successfully");
       resetOrder();
     } catch (error) {
+      saveSubmittedOrderToStorage({
+        customer,
+        items,
+        submittedAt,
+      });
       toast.error(
         error instanceof Error
           ? `${error.message} A local backup was saved on this device.`

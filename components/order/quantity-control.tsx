@@ -9,6 +9,7 @@ interface QuantityControlProps {
   value: number;
   onIncrement: () => void;
   onDecrement: () => void;
+  min?: number;
   className?: string;
 }
 
@@ -16,6 +17,7 @@ export function QuantityControl({
   value,
   onIncrement,
   onDecrement,
+  min = 1,
   className,
 }: QuantityControlProps) {
   return (
@@ -25,7 +27,7 @@ export function QuantityControl({
         variant="outline"
         size="icon-xs"
         onClick={onDecrement}
-        disabled={value <= 0}
+        disabled={value <= min}
         aria-label="Decrease quantity"
       >
         <Minus />

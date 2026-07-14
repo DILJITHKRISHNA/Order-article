@@ -29,7 +29,7 @@ export function selectOrderLineItems(
   const items: OrderLineItem[] = [];
 
   for (const row of rows) {
-    if (!row.size || row.qty <= 0) continue;
+    if (!row.size || row.qty < 1) continue;
 
     const availableSizes = getSplitSizesForRange(
       row.article,

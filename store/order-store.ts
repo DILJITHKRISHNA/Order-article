@@ -46,8 +46,10 @@ function buildInitialCustomer(): CustomerDetails {
   };
 }
 
+const MIN_ORDER_QTY = 1;
+
 function clampQty(qty: number): number {
-  return Math.max(0, qty);
+  return Math.max(MIN_ORDER_QTY, qty);
 }
 
 function createOrderRowsForRange(
@@ -64,7 +66,7 @@ function createOrderRowsForRange(
     color,
     sizeRange,
     size,
-    qty: 0,
+    qty: MIN_ORDER_QTY,
   }));
 }
 
@@ -144,13 +146,14 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
   incrementRowQty: (rowId) => {
     const row = get().rows.find((item) => item.id === rowId);
-    const current = row?.qty ?? 0;
+    const current = row?.qty ?? MIN_ORDER_QTY;
     get().setRowQty(rowId, current + 1);
   },
 
   decrementRowQty: (rowId) => {
     const row = get().rows.find((item) => item.id === rowId);
-    const current = row?.qty ?? 0;
+    const current = row?.qty ?? MIN_ORDER_QTY;
+    if (current <= MIN_ORDER_QTY) return;
     get().setRowQty(rowId, current - 1);
   },
 

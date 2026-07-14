@@ -1,13 +1,14 @@
 import type { CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
 import {
   createSubmittedOrderRecord,
+  dedupeOrderLineItems,
+  dedupeSubmittedOrders,
   filterOrderedItems,
   flattenSubmittedOrders,
   type OrdersDatabase,
 } from "@/lib/orders-utils";
 import {
   appendSubmittedOrderToSupabase,
-  readSubmittedOrderRowsFromSupabase,
   readSubmittedOrdersFromSupabase,
 } from "@/lib/supabase/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
@@ -40,7 +41,7 @@ export async function appendSubmittedOrder(
   items: OrderLineItem[],
   submittedAt: string
 ): Promise<SubmittedOrderRecord> {
-  const orderedItems = filterOrderedItems(items);
+  const orderedItems = dedupeOrderLineItems(filterOrderedItems(items));
 
   if (orderedItems.length === 0) {
     throw new Error("Order must include at least one item with quantity greater than zero");
@@ -51,6 +52,15 @@ export async function appendSubmittedOrder(
   }
 
   const database = await readLocalDatabase();
+
+  if (
+    database.orders.some(
+      (order) => order.customer.orderNumber === customer.orderNumber
+    )
+  ) {
+    throw new Error("This order has already been submitted");
+  }
+
   const record = createSubmittedOrderRecord(customer, orderedItems, submittedAt);
 
   database.orders.push(record);
@@ -59,20 +69,24 @@ export async function appendSubmittedOrder(
   return record;
 }
 
+export async function clearSubmittedOrders(): Promise<void> {
+  if (isSupabaseConfigured()) {
+    throw new Error("Clearing orders is not supported for Supabase storage");
+  }
+
+  await writeLocalDatabase({ orders: [] });
+}
+
 export async function readSubmittedOrders(): Promise<SubmittedOrderRecord[]> {
   if (isSupabaseConfigured()) {
-    return readSubmittedOrdersFromSupabase();
+    return dedupeSubmittedOrders(await readSubmittedOrdersFromSupabase());
   }
 
   const database = await readLocalDatabase();
-  return database.orders;
+  return dedupeSubmittedOrders(database.orders);
 }
 
 export async function readSubmittedOrderRows() {
-  if (isSupabaseConfigured()) {
-    return readSubmittedOrderRowsFromSupabase();
-  }
-
   const orders = await readSubmittedOrders();
   return flattenSubmittedOrders(orders);
 }
