@@ -51,6 +51,11 @@ export function AdminPage() {
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
   const [storageProvider, setStorageProvider] = useState("local");
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    message: string;
+  }>({ configured: false, connected: false, message: "" });
 
   const applyOrders = useCallback((nextOrders: AdminOrderRow[]) => {
     setOrders(nextOrders);
@@ -96,8 +101,18 @@ export function AdminPage() {
             cache: "no-store",
           });
           if (storageResponse.ok) {
-            const storage = (await storageResponse.json()) as { provider: string };
+            const storage = (await storageResponse.json()) as {
+              provider: string;
+              supabaseConfigured: boolean;
+              supabaseConnected: boolean;
+              supabaseMessage: string;
+            };
             setStorageProvider(storage.provider);
+            setSupabaseStatus({
+              configured: storage.supabaseConfigured,
+              connected: storage.supabaseConnected,
+              message: storage.supabaseMessage,
+            });
           }
         } else {
           setIsAuthenticated(false);
@@ -142,8 +157,18 @@ export function AdminPage() {
         cache: "no-store",
       });
       if (storageResponse.ok) {
-        const storage = (await storageResponse.json()) as { provider: string };
+        const storage = (await storageResponse.json()) as {
+          provider: string;
+          supabaseConfigured: boolean;
+          supabaseConnected: boolean;
+          supabaseMessage: string;
+        };
         setStorageProvider(storage.provider);
+        setSupabaseStatus({
+          configured: storage.supabaseConfigured,
+          connected: storage.supabaseConnected,
+          message: storage.supabaseMessage,
+        });
       }
 
       toast.success("Admin access granted");
@@ -249,8 +274,21 @@ export function AdminPage() {
             <Badge variant="secondary">{stats.totalOrders} orders</Badge>
             <Badge variant="outline">{stats.totalLineItems} line items</Badge>
             <Badge variant="outline">
-              Storage: {storageProvider === "supabase" ? "Supabase" : "Local server"}
+              Storage:{" "}
+              {storageProvider === "supabase" ? "Supabase" : "Local server"}
             </Badge>
+            {supabaseStatus.configured ? (
+              <Badge
+                variant={supabaseStatus.connected ? "secondary" : "destructive"}
+              >
+                Supabase:{" "}
+                {supabaseStatus.connected ? "Connected" : "Connection failed"}
+              </Badge>
+            ) : (
+              <Badge variant="outline">
+                Supabase: Add credentials to .env.local
+              </Badge>
+            )}
           </CardContent>
         </Card>
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/orders-utils";
 import {
   appendSubmittedOrderToSupabase,
+  clearSubmittedOrdersFromSupabase,
   readSubmittedOrdersFromSupabase,
 } from "@/lib/supabase/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
@@ -71,7 +72,8 @@ export async function appendSubmittedOrder(
 
 export async function clearSubmittedOrders(): Promise<void> {
   if (isSupabaseConfigured()) {
-    throw new Error("Clearing orders is not supported for Supabase storage");
+    await clearSubmittedOrdersFromSupabase();
+    return;
   }
 
   await writeLocalDatabase({ orders: [] });

@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to submit order:", error);
     return NextResponse.json(
-      { error: "Failed to save order" },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to save order",
+      },
       { status: 500 }
     );
   }

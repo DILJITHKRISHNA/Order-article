@@ -133,6 +133,19 @@ export async function appendSubmittedOrderToSupabase(
   return createSubmittedOrderRecord(customer, orderedItems, submittedAt);
 }
 
+export async function clearSubmittedOrdersFromSupabase(): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  const { error } = await supabase
+    .from("submitted_order_items")
+    .delete()
+    .not("order_number", "is", null);
+
+  if (error) {
+    throw new Error(`Supabase clear failed: ${error.message}`);
+  }
+}
+
 export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRow[]> {
   const supabase = createSupabaseAdminClient();
 
@@ -145,8 +158,18 @@ export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRo
     throw new Error(`Supabase read failed: ${error.message}`);
   }
 
-  return ((data ?? []) as SubmittedOrderItemRow[])
-    .filter((row) => row.qty > 0)
+  const rows = ((data ?? []) as SubmittedOrderItemRow[]).filter(
+    (row) => row.qty > 0
+  );
+  const seen = new Set<string>();
+
+  return rows
+    .filter((row) => {
+      const key = `${row.order_number}-${row.sku}-${row.submitted_at}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map(mapRowToAdminOrder);
 }
 

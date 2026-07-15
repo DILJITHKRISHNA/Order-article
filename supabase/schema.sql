@@ -22,7 +22,13 @@ create index if not exists idx_submitted_order_items_submitted_at
 create index if not exists idx_submitted_order_items_order_number
   on submitted_order_items (order_number);
 
+-- Prevent duplicate line items within the same order
+create unique index if not exists idx_submitted_order_items_order_sku
+  on submitted_order_items (order_number, sku);
+
 -- If the table already exists, run this migration:
 -- alter table submitted_order_items
 --   add column if not exists shop_name text not null default '',
 --   add column if not exists executive_name text not null default '';
+-- create unique index if not exists idx_submitted_order_items_order_sku
+--   on submitted_order_items (order_number, sku);
