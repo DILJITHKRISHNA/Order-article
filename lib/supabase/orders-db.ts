@@ -29,6 +29,7 @@ interface SubmittedOrderItemRow {
 
 function mapRowToAdminOrder(row: SubmittedOrderItemRow): AdminOrderRow {
   return {
+    id: row.id,
     orderNumber: row.order_number,
     customerName: row.customer_name,
     shopName: row.shop_name ?? "",
@@ -39,6 +40,7 @@ function mapRowToAdminOrder(row: SubmittedOrderItemRow): AdminOrderRow {
     color: row.color,
     size: row.size,
     qty: row.qty,
+    sku: row.sku,
     submittedAt: row.submitted_at,
   };
 }
@@ -143,6 +145,36 @@ export async function clearSubmittedOrdersFromSupabase(): Promise<void> {
 
   if (error) {
     throw new Error(`Supabase clear failed: ${error.message}`);
+  }
+}
+
+export async function deleteSubmittedOrderLineFromSupabase(
+  orderNumber: string,
+  sku: string,
+  submittedAt: string,
+  id?: string
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  let query = supabase.from("submitted_order_items").delete();
+
+  if (id) {
+    query = query.eq("id", id);
+  } else {
+    query = query
+      .eq("order_number", orderNumber)
+      .eq("sku", sku)
+      .eq("submitted_at", submittedAt);
+  }
+
+  const { data, error } = await query.select("id");
+
+  if (error) {
+    throw new Error(`Supabase delete failed: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error("Order line not found");
   }
 }
 

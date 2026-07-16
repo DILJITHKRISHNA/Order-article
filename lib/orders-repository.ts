@@ -10,6 +10,7 @@ import {
 import {
   appendSubmittedOrderToSupabase,
   clearSubmittedOrdersFromSupabase,
+  deleteSubmittedOrderLineFromSupabase,
   readSubmittedOrdersFromSupabase,
 } from "@/lib/supabase/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
@@ -68,6 +69,54 @@ export async function appendSubmittedOrder(
   await writeLocalDatabase(database);
 
   return record;
+}
+
+export async function deleteSubmittedOrderLine(
+  orderNumber: string,
+  sku: string,
+  submittedAt: string,
+  id?: string
+): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await deleteSubmittedOrderLineFromSupabase(
+      orderNumber,
+      sku,
+      submittedAt,
+      id
+    );
+    return;
+  }
+
+  const database = await readLocalDatabase();
+  let found = false;
+
+  const nextOrders = database.orders
+    .map((order) => {
+      if (
+        order.customer.orderNumber !== orderNumber ||
+        order.submittedAt !== submittedAt
+      ) {
+        return order;
+      }
+
+      const items = order.items.filter((item) => item.sku !== sku);
+      if (items.length < order.items.length) {
+        found = true;
+      }
+
+      if (items.length === 0) {
+        return null;
+      }
+
+      return { ...order, items };
+    })
+    .filter((order): order is SubmittedOrderRecord => order !== null);
+
+  if (!found) {
+    throw new Error("Order line not found");
+  }
+
+  await writeLocalDatabase({ orders: nextOrders });
 }
 
 export async function clearSubmittedOrders(): Promise<void> {

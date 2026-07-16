@@ -58,6 +58,7 @@ export function flattenSubmittedOrders(
   color: string;
   size: string;
   qty: number;
+  sku: string;
   submittedAt: string;
 }> {
   const rows = [];
@@ -83,6 +84,7 @@ export function flattenSubmittedOrders(
         size: item.size,
         qty: item.qty,
         submittedAt: order.submittedAt,
+        sku: item.sku,
       });
     }
   }

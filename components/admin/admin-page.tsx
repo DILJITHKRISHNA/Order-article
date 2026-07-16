@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, LogOut, ShieldCheck } from "lucide-react";
+import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -56,6 +56,7 @@ export function AdminPage() {
     connected: boolean;
     message: string;
   }>({ configured: false, connected: false, message: "" });
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
   const applyOrders = useCallback((nextOrders: AdminOrderRow[]) => {
     setOrders(nextOrders);
@@ -196,6 +197,42 @@ export function AdminPage() {
     window.location.href = "/api/admin/orders/download";
   };
 
+  const handleDeleteLine = async (order: AdminOrderRow) => {
+    const lineKey = `${order.orderNumber}-${order.sku}-${order.submittedAt}`;
+    setDeletingKey(lineKey);
+
+    try {
+      const response = await fetch("/api/admin/orders", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          sku: order.sku,
+          submittedAt: order.submittedAt,
+        }),
+      });
+
+      const data = (await response.json()) as AdminOrdersResponse & {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to delete order line");
+      }
+
+      applyOrders(data.orders);
+      toast.success("Order line deleted");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete order line"
+      );
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-full bg-muted/30">
@@ -316,11 +353,15 @@ export function AdminPage() {
                     <TableHead>Size</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
                     <TableHead>Submitted</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order, index) => (
-                    <TableRow key={`${order.orderNumber}-${order.article}-${order.color}-${order.size}-${index}`}>
+                  {orders.map((order) => {
+                    const lineKey = `${order.orderNumber}-${order.sku}-${order.submittedAt}`;
+
+                    return (
+                    <TableRow key={lineKey}>
                       <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
                       <TableCell>{order.shopName || "-"}</TableCell>
@@ -334,8 +375,21 @@ export function AdminPage() {
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(order.submittedAt).toLocaleString()}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          disabled={deletingKey === lineKey}
+                          onClick={() => void handleDeleteLine(order)}
+                          aria-label="Delete order line"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

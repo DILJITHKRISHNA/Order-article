@@ -66,14 +66,14 @@ export function OrderPage() {
     <div className="min-h-full bg-muted/30">
       <AppHeader />
 
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl space-y-10 px-4 py-6 sm:space-y-8 sm:px-6 lg:space-y-6 lg:px-8">
         {isLoading ? (
           <LoadingState />
         ) : error ? (
           <ErrorState message={error} />
         ) : (
           <>
-            <Card>
+            <Card className="pb-2 sm:pb-0">
               <CardHeader>
                 <CardTitle className="text-lg font-bold">Customer Details</CardTitle>
                 <CardDescription>
@@ -81,7 +81,7 @@ export function OrderPage() {
                   information before submitting your order.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pb-6 sm:pb-0">
                 <CustomerForm />
               </CardContent>
             </Card>
@@ -94,7 +94,7 @@ export function OrderPage() {
                   then set quantities in the order summary.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 pt-2 sm:pt-0">
                 <OrderToolbar catalog={catalog} />
 
                 {showWorkspace ? (

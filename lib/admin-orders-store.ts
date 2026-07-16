@@ -2,6 +2,9 @@ import ExcelJS from "exceljs";
 
 import { getWritableDataFilePath } from "@/lib/server-data-path";
 import { readSubmittedOrderRows } from "@/lib/orders-repository";
+import type { AdminOrderRow } from "@/types/order";
+
+export type { AdminOrderRow };
 
 export const ADMIN_ORDERS_FILENAME = "admin-orders.xlsx";
 
@@ -18,20 +21,6 @@ export const ADMIN_ORDER_COLUMNS = [
   "Qty",
   "Submitted At",
 ] as const;
-
-export type AdminOrderRow = {
-  orderNumber: string;
-  customerName: string;
-  shopName: string;
-  executiveName: string;
-  location: string;
-  phoneNumber: string;
-  article: string;
-  color: string;
-  size: string;
-  qty: number;
-  submittedAt: string;
-};
 
 const HEADER_FILL: ExcelJS.Fill = {
   type: "pattern",

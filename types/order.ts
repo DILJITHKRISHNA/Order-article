@@ -37,6 +37,7 @@ export interface SubmittedOrderRecord {
 }
 
 export interface AdminOrderRow {
+  id?: string;
   orderNumber: string;
   customerName: string;
   shopName: string;
@@ -47,5 +48,6 @@ export interface AdminOrderRow {
   color: string;
   size: string;
   qty: number;
+  sku: string;
   submittedAt: string;
 }
