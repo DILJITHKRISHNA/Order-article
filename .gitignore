@@ -37,6 +37,6 @@ yarn-error.log*
 .vercel
 
 # admin master orders file
-/data/admin-orders.xlsx
+/data/admin-orders.pdf
 /data/orders.json
 

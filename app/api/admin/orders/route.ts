@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { syncAdminOrdersExcel, readAdminOrders } from "@/lib/admin-orders-store";
+import { syncAdminOrdersPdf, readAdminOrders } from "@/lib/admin-orders-store";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { deleteSubmittedOrderLine } from "@/lib/orders-repository";
 
@@ -61,7 +61,7 @@ export async function DELETE(request: Request) {
       parsed.data.id
     );
 
-    await syncAdminOrdersExcel();
+    await syncAdminOrdersPdf();
 
     const orders = await readAdminOrders();
     const uniqueOrderNumbers = new Set(orders.map((order) => order.orderNumber));

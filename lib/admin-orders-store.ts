@@ -1,4 +1,5 @@
-import ExcelJS from "exceljs";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 import { getWritableDataFilePath } from "@/lib/server-data-path";
 import { readSubmittedOrderRows } from "@/lib/orders-repository";
@@ -6,7 +7,7 @@ import type { AdminOrderRow } from "@/types/order";
 
 export type { AdminOrderRow };
 
-export const ADMIN_ORDERS_FILENAME = "admin-orders.xlsx";
+export const ADMIN_ORDERS_FILENAME = "admin-orders.pdf";
 
 export const ADMIN_ORDER_COLUMNS = [
   "Order Number",
@@ -22,74 +23,70 @@ export const ADMIN_ORDER_COLUMNS = [
   "Submitted At",
 ] as const;
 
-const HEADER_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "FFE2E8F0" },
-};
-
-function styleHeaderRow(row: ExcelJS.Row) {
-  row.font = { bold: true };
-  row.fill = HEADER_FILL;
+function mapRowToTableCells(row: AdminOrderRow): string[] {
+  return [
+    row.orderNumber,
+    row.customerName,
+    row.shopName,
+    row.executiveName,
+    row.location,
+    row.phoneNumber,
+    row.article,
+    row.color,
+    row.size,
+    String(row.qty),
+    row.submittedAt,
+  ];
 }
 
-function configureSheetColumns(sheet: ExcelJS.Worksheet) {
-  sheet.getColumn(1).width = 16;
-  sheet.getColumn(2).width = 22;
-  sheet.getColumn(3).width = 18;
-  sheet.getColumn(4).width = 18;
-  sheet.getColumn(5).width = 18;
-  sheet.getColumn(6).width = 16;
-  sheet.getColumn(7).width = 12;
-  sheet.getColumn(8).width = 10;
-  sheet.getColumn(9).width = 8;
-  sheet.getColumn(10).width = 8;
-  sheet.getColumn(11).width = 22;
+function buildAdminOrdersPdf(rows: AdminOrderRow[]): Buffer {
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "pt",
+    format: "a4",
+  });
+
+  doc.setFontSize(16);
+  doc.text("Admin Orders", 40, 40);
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 58);
+  doc.text(`Total line items: ${rows.length}`, 40, 72);
+
+  autoTable(doc, {
+    startY: 88,
+    head: [ADMIN_ORDER_COLUMNS.slice()],
+    body: rows.map(mapRowToTableCells),
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+      overflow: "linebreak",
+    },
+    headStyles: {
+      fillColor: [226, 232, 240],
+      textColor: [15, 23, 42],
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    margin: { left: 40, right: 40 },
+  });
+
+  return Buffer.from(doc.output("arraybuffer"));
 }
 
-async function buildAdminWorkbook(
-  rows: AdminOrderRow[]
-): Promise<ExcelJS.Workbook> {
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Order Management";
-  workbook.created = new Date();
-
-  const sheet = workbook.addWorksheet("All Orders");
-  configureSheetColumns(sheet);
-
-  const headerRow = sheet.addRow([...ADMIN_ORDER_COLUMNS]);
-  styleHeaderRow(headerRow);
-
-  for (const row of rows) {
-    sheet.addRow([
-      row.orderNumber,
-      row.customerName,
-      row.shopName,
-      row.executiveName,
-      row.location,
-      row.phoneNumber,
-      row.article,
-      row.color,
-      row.size,
-      row.qty,
-      row.submittedAt,
-    ]);
-  }
-
-  return workbook;
-}
-
-export async function syncAdminOrdersExcel(): Promise<void> {
+export async function syncAdminOrdersPdf(): Promise<void> {
   const rows = await readSubmittedOrderRows();
-  const workbook = await buildAdminWorkbook(rows);
   const filePath = await getWritableDataFilePath(ADMIN_ORDERS_FILENAME);
 
   if (!filePath) return;
 
   try {
-    await workbook.xlsx.writeFile(filePath);
+    const buffer = buildAdminOrdersPdf(rows);
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(filePath, buffer);
   } catch (error) {
-    console.error("Failed to write admin Excel file:", error);
+    console.error("Failed to write admin PDF file:", error);
   }
 }
 
@@ -99,6 +96,5 @@ export async function readAdminOrders(): Promise<AdminOrderRow[]> {
 
 export async function getAdminOrdersFileBuffer(): Promise<Buffer> {
   const rows = await readSubmittedOrderRows();
-  const workbook = await buildAdminWorkbook(rows);
-  return Buffer.from(await workbook.xlsx.writeBuffer());
+  return buildAdminOrdersPdf(rows);
 }

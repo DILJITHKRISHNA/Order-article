@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { ArticleCombobox } from "@/components/order/article-combobox";
 import { Button } from "@/components/ui/button";
-import { exportOrderToExcel } from "@/lib/export-order";
+import { exportOrderToPdf } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
 import { selectOrderLineItems } from "@/lib/order-selectors";
 import { saveSubmittedOrderToStorage } from "@/lib/storage";
@@ -88,8 +88,8 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
 
     setIsExporting(true);
     try {
-      await exportOrderToExcel(customer, items);
-      toast.success("Order exported to Excel");
+      await exportOrderToPdf(customer, items);
+      toast.success("Order exported to PDF");
     } catch {
       toast.error("Failed to export order");
     } finally {
@@ -130,7 +130,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
           disabled={isExporting}
         >
           <Download data-icon="inline-start" />
-          {isExporting ? "Exporting..." : "Export Excel"}
+          {isExporting ? "Exporting..." : "Export PDF"}
         </Button>
         <Button type="button" variant="secondary" onClick={handleReset}>
           <RotateCcw data-icon="inline-start" />
