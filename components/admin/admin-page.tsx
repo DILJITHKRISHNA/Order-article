@@ -299,7 +299,7 @@ export function AdminPage() {
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={handleDownload}>
                 <Download data-icon="inline-start" />
-                Download PDF
+                Download Excel
               </Button>
               <Button type="button" variant="secondary" onClick={() => void handleLogout()}>
                 <LogOut data-icon="inline-start" />

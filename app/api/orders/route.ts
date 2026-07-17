@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { syncAdminOrdersPdf } from "@/lib/admin-orders-store";
+import { syncAdminOrdersExcel } from "@/lib/admin-orders-store";
 import { appendSubmittedOrder } from "@/lib/orders-repository";
 import { submitOrderSchema } from "@/schemas/submit-order-schema";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       submittedAt
     );
 
-    await syncAdminOrdersPdf();
+    await syncAdminOrdersExcel();
 
     return NextResponse.json({
       success: true,
