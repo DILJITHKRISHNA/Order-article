@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, RotateCcw, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, FolderOpen, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { ArticleCombobox } from "@/components/order/article-combobox";
@@ -9,7 +9,12 @@ import { Button } from "@/components/ui/button";
 import { exportOrderToPdf } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
 import { selectOrderLineItems } from "@/lib/order-selectors";
-import { saveSubmittedOrderToStorage } from "@/lib/storage";
+import {
+  clearOrderFromStorage,
+  hasSavedOrderInStorage,
+  loadOrderFromStorage,
+  saveSubmittedOrderToStorage,
+} from "@/lib/storage";
 import { customerSchema } from "@/schemas/customer-schema";
 import { useOrderStore } from "@/store/order-store";
 import type { ArticleGroup } from "@/types/article";
@@ -29,6 +34,12 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
   );
   const selectArticle = useOrderStore((state) => state.selectArticle);
   const resetOrder = useOrderStore((state) => state.resetOrder);
+  const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
+  const [canLoadSavedOrder, setCanLoadSavedOrder] = useState(false);
+
+  useEffect(() => {
+    setCanLoadSavedOrder(hasSavedOrderInStorage());
+  }, [customer, rows]);
 
   const handleArticleSelect = (articleNumber: string) => {
     const selected = selectArticle(articleNumber);
@@ -55,8 +66,10 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
     setIsSubmitting(true);
     try {
       await submitOrderToAdmin(customer, items);
-      toast.success("Order submitted successfully");
+      clearOrderFromStorage();
       resetOrder();
+      setCanLoadSavedOrder(false);
+      toast.success("Order submitted successfully");
     } catch (error) {
       saveSubmittedOrderToStorage({
         customer,
@@ -97,8 +110,22 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
     }
   };
 
+  const handleLoad = () => {
+    const savedOrder = loadOrderFromStorage();
+    if (!savedOrder) {
+      setCanLoadSavedOrder(false);
+      toast.error("No saved order found on this device");
+      return;
+    }
+
+    hydrateOrder(savedOrder.customer, savedOrder.rows);
+    toast.success("Saved order restored");
+  };
+
   const handleReset = () => {
+    clearOrderFromStorage();
     resetOrder();
+    setCanLoadSavedOrder(false);
     toast.success("New order started");
   };
 
@@ -115,6 +142,15 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleLoad}
+          disabled={!canLoadSavedOrder}
+        >
+          <FolderOpen data-icon="inline-start" />
+          Load
+        </Button>
         <Button
           type="button"
           onClick={() => void handleSubmitOrder()}

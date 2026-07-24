@@ -116,9 +116,10 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
     if (hasRows) {
       set({
-        rows: rows.filter(
-          (row) =>
-            buildOrderRowKey(row.article, row.color, row.sizeRange) !== rowKey
+        rows: rows.map((row) =>
+          buildOrderRowKey(row.article, row.color, row.sizeRange) === rowKey
+            ? { ...row, qty: row.qty + 1 }
+            : row
         ),
       });
       return;

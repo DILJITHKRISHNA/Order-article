@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/use-articles";
+import { useOrderPersistence } from "@/hooks/use-order-persistence";
 import { useOrderStore } from "@/store/order-store";
 
 function LoadingState() {
@@ -56,6 +57,7 @@ function ErrorState({ message }: { message: string }) {
 
 export function OrderPage() {
   const { catalog, isLoading, error } = useArticles();
+  useOrderPersistence();
   const selectedArticleNumber = useOrderStore(
     (state) => state.selectedArticleNumber
   );

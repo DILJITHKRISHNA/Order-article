@@ -40,12 +40,13 @@ export function ActiveArticlePanel({ catalog }: ActiveArticlePanelProps) {
     [article]
   );
 
-  const checkedKeys = useMemo(() => {
-    const keys = new Set<string>();
+  const rangeQuantities = useMemo(() => {
+    const quantities = new Map<string, number>();
     for (const row of rows) {
-      keys.add(buildOrderRowKey(row.article, row.color, row.sizeRange));
+      const key = buildOrderRowKey(row.article, row.color, row.sizeRange);
+      quantities.set(key, row.qty);
     }
-    return keys;
+    return quantities;
   }, [rows]);
 
   if (!selectedArticleNumber) return null;
@@ -62,8 +63,8 @@ export function ActiveArticlePanel({ catalog }: ActiveArticlePanelProps) {
           )}
         </CardTitle>
         <CardDescription>
-          Select the colors and sizes you need. You can add the same article in
-          multiple sizes.
+          Select the colors and sizes you need. Click the same size again to add
+          more quantity.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -81,23 +82,32 @@ export function ActiveArticlePanel({ catalog }: ActiveArticlePanelProps) {
                     color,
                     size
                   );
-                  const isChecked = checkedKeys.has(rowKey);
+                  const qty = rangeQuantities.get(rowKey);
+                  const isSelected = qty !== undefined;
 
                   return (
                     <Button
                       key={rowKey}
                       type="button"
-                      variant={isChecked ? "default" : "outline"}
+                      variant={isSelected ? "default" : "outline"}
                       size="sm"
                       onClick={() =>
                         toggleOrderRow(selectedArticleNumber, color, size)
                       }
-                      aria-pressed={isChecked}
+                      aria-pressed={isSelected}
                     >
                       <Check
-                        className={isChecked ? "opacity-100" : "opacity-0"}
+                        className={isSelected ? "opacity-100" : "opacity-0"}
                       />
                       {size}
+                      {isSelected && qty > 1 && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-1 min-w-5 justify-center px-1.5 tabular-nums"
+                        >
+                          {qty}
+                        </Badge>
+                      )}
                     </Button>
                   );
                 })}

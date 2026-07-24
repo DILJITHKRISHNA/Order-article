@@ -1,11 +1,39 @@
-import type { SavedOrder, SubmittedOrderRecord } from "@/types/order";
+import { savedOrderSchema } from "@/schemas/saved-order-schema";
+import type {
+  CustomerDetails,
+  OrderRow,
+  SavedOrder,
+  SubmittedOrderRecord,
+} from "@/types/order";
 
 export const ORDER_STORAGE_KEY = "order-management:saved-order";
 export const SUBMITTED_ORDERS_STORAGE_KEY = "order-management:submitted-orders";
 
+export function hasCustomerDraft(customer: CustomerDetails): boolean {
+  return Boolean(
+    customer.customerName.trim() ||
+      customer.shopName.trim() ||
+      customer.executiveName.trim() ||
+      customer.location.trim() ||
+      customer.phoneNumber.trim()
+  );
+}
+
+export function saveOrderDraft(customer: CustomerDetails, rows: OrderRow[]): void {
+  saveOrderToStorage({
+    customer,
+    rows,
+    savedAt: new Date().toISOString(),
+  });
+}
+
 export function saveOrderToStorage(order: SavedOrder): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(order));
+}
+
+export function hasSavedOrderInStorage(): boolean {
+  return loadOrderFromStorage() !== null;
 }
 
 export function loadOrderFromStorage(): SavedOrder | null {
@@ -15,7 +43,9 @@ export function loadOrderFromStorage(): SavedOrder | null {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as SavedOrder;
+    const parsed = JSON.parse(raw);
+    const result = savedOrderSchema.safeParse(parsed);
+    return result.success ? result.data : null;
   } catch {
     return null;
   }
