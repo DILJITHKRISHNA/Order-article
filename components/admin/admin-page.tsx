@@ -28,18 +28,37 @@ import {
 } from "@/components/ui/table";
 import type { AdminOrderRow } from "@/types/order";
 
+const DEFAULT_PAGE_SIZE = 50;
+
 interface AdminOrdersResponse {
   orders: AdminOrderRow[];
   totalLineItems: number;
   totalOrders: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
-function buildStats(orders: AdminOrderRow[]) {
-  const uniqueOrderNumbers = new Set(orders.map((order) => order.orderNumber));
-  return {
-    totalLineItems: orders.length,
-    totalOrders: uniqueOrderNumbers.size,
-  };
+function applyOrdersResponse(
+  data: AdminOrdersResponse,
+  setOrders: (orders: AdminOrderRow[]) => void,
+  setStats: (stats: { totalLineItems: number; totalOrders: number }) => void,
+  setPagination: (pagination: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }) => void
+) {
+  setOrders(data.orders);
+  setStats({
+    totalLineItems: data.totalLineItems,
+    totalOrders: data.totalOrders,
+  });
+  setPagination({
+    page: data.page,
+    pageSize: data.pageSize,
+    totalPages: data.totalPages,
+  });
 }
 
 export function AdminPage() {
@@ -50,6 +69,11 @@ export function AdminPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    totalPages: 1,
+  });
   const [storageProvider, setStorageProvider] = useState("local");
   const [supabaseStatus, setSupabaseStatus] = useState<{
     configured: boolean;
@@ -58,31 +82,36 @@ export function AdminPage() {
   }>({ configured: false, connected: false, message: "" });
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
-  const applyOrders = useCallback((nextOrders: AdminOrderRow[]) => {
-    setOrders(nextOrders);
-    setStats(buildStats(nextOrders));
+  const applyOrders = useCallback((data: AdminOrdersResponse) => {
+    applyOrdersResponse(data, setOrders, setStats, setPagination);
     setIsAuthenticated(true);
   }, []);
 
-  const loadOrders = useCallback(async () => {
-    const response = await fetch("/api/admin/orders", {
-      credentials: "include",
-      cache: "no-store",
-    });
+  const loadOrders = useCallback(
+    async (page = pagination.page, pageSize = pagination.pageSize) => {
+      const response = await fetch(
+        `/api/admin/orders?page=${page}&pageSize=${pageSize}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
-    if (response.status === 401) {
-      setIsAuthenticated(false);
-      return false;
-    }
+      if (response.status === 401) {
+        setIsAuthenticated(false);
+        return false;
+      }
 
-    if (!response.ok) {
-      throw new Error("Failed to load orders");
-    }
+      if (!response.ok) {
+        throw new Error("Failed to load orders");
+      }
 
-    const data = (await response.json()) as AdminOrdersResponse;
-    applyOrders(data.orders);
-    return true;
-  }, [applyOrders]);
+      const data = (await response.json()) as AdminOrdersResponse;
+      applyOrders(data);
+      return true;
+    },
+    [applyOrders, pagination.page, pagination.pageSize]
+  );
 
   useEffect(() => {
     async function init() {
@@ -211,6 +240,8 @@ export function AdminPage() {
           orderNumber: order.orderNumber,
           sku: order.sku,
           submittedAt: order.submittedAt,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
         }),
       });
 
@@ -222,7 +253,7 @@ export function AdminPage() {
         throw new Error(data.error ?? "Failed to delete order line");
       }
 
-      applyOrders(data.orders);
+      applyOrders(data);
       toast.success("Order line deleted");
     } catch (error) {
       toast.error(
@@ -334,64 +365,108 @@ export function AdminPage() {
             <CardTitle>All Submitted Orders</CardTitle>
           </CardHeader>
           <CardContent>
-            {orders.length === 0 ? (
+            {stats.totalLineItems === 0 ? (
               <p className="py-12 text-center text-sm text-muted-foreground">
                 No orders submitted yet.
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Shop</TableHead>
-                    <TableHead>Executive</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Article</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => {
-                    const lineKey = `${order.orderNumber}-${order.sku}-${order.submittedAt}`;
-
-                    return (
-                    <TableRow key={lineKey}>
-                      <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
-                      <TableCell>{order.customerName}</TableCell>
-                      <TableCell>{order.shopName || "-"}</TableCell>
-                      <TableCell>{order.executiveName || "-"}</TableCell>
-                      <TableCell>{order.location}</TableCell>
-                      <TableCell>{order.phoneNumber}</TableCell>
-                      <TableCell>{order.article}</TableCell>
-                      <TableCell>{order.color}</TableCell>
-                      <TableCell>{order.size}</TableCell>
-                      <TableCell className="text-right tabular-nums">{order.qty}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(order.submittedAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={deletingKey === lineKey}
-                          onClick={() => void handleDeleteLine(order)}
-                          aria-label="Delete order line"
-                        >
-                          <Trash2 />
-                        </Button>
-                      </TableCell>
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Shop</TableHead>
+                      <TableHead>Executive</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Article</TableHead>
+                      <TableHead>Color</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => {
+                      const lineKey = `${order.orderNumber}-${order.sku}-${order.submittedAt}`;
+
+                      return (
+                        <TableRow key={lineKey}>
+                          <TableCell className="font-mono text-xs">
+                            {order.orderNumber}
+                          </TableCell>
+                          <TableCell>{order.customerName}</TableCell>
+                          <TableCell>{order.shopName || "-"}</TableCell>
+                          <TableCell>{order.executiveName || "-"}</TableCell>
+                          <TableCell>{order.location}</TableCell>
+                          <TableCell>{order.phoneNumber}</TableCell>
+                          <TableCell>{order.article}</TableCell>
+                          <TableCell>{order.color}</TableCell>
+                          <TableCell>{order.size}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {order.qty}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(order.submittedAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              disabled={deletingKey === lineKey}
+                              onClick={() => void handleDeleteLine(order)}
+                              aria-label="Delete order line"
+                            >
+                              <Trash2 />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {stats.totalLineItems === 0
+                      ? 0
+                      : (pagination.page - 1) * pagination.pageSize + 1}
+                    –
+                    {Math.min(
+                      pagination.page * pagination.pageSize,
+                      stats.totalLineItems
+                    )}{" "}
+                    of {stats.totalLineItems} line items
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={pagination.page <= 1}
+                      onClick={() => void loadOrders(pagination.page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={pagination.page >= pagination.totalPages}
+                      onClick={() => void loadOrders(pagination.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

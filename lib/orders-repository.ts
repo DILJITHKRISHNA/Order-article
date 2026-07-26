@@ -1,4 +1,4 @@
-import type { CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
+import type { AdminOrderRow, CustomerDetails, OrderLineItem, SubmittedOrderRecord } from "@/types/order";
 import {
   createSubmittedOrderRecord,
   dedupeOrderLineItems,
@@ -10,7 +10,11 @@ import {
 import {
   appendSubmittedOrderToSupabase,
   clearSubmittedOrdersFromSupabase,
+  countSubmittedOrderItemsInSupabase,
+  countUniqueOrdersInSupabase,
   deleteSubmittedOrderLineFromSupabase,
+  readSubmittedOrderRowsFromSupabase,
+  readSubmittedOrderRowsPageFromSupabase,
   readSubmittedOrdersFromSupabase,
 } from "@/lib/supabase/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
@@ -21,6 +25,38 @@ import {
 } from "@/lib/storage/providers/local-storage";
 
 export { ORDERS_JSON_FILENAME };
+
+export const DEFAULT_ADMIN_PAGE_SIZE = 50;
+
+export interface AdminOrdersPageResult {
+  orders: AdminOrderRow[];
+  totalLineItems: number;
+  totalOrders: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+function paginateRows(
+  rows: AdminOrderRow[],
+  page: number,
+  pageSize: number
+): AdminOrdersPageResult {
+  const totalLineItems = rows.length;
+  const totalOrders = new Set(rows.map((row) => row.orderNumber)).size;
+  const totalPages = Math.max(1, Math.ceil(totalLineItems / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+
+  return {
+    orders: rows.slice(start, start + pageSize),
+    totalLineItems,
+    totalOrders,
+    page: safePage,
+    pageSize,
+    totalPages,
+  };
+}
 
 export function getActiveStorageName(): "supabase" | "local" {
   return isSupabaseConfigured() ? "supabase" : "local";
@@ -138,8 +174,42 @@ export async function readSubmittedOrders(): Promise<SubmittedOrderRecord[]> {
 }
 
 export async function readSubmittedOrderRows() {
+  if (isSupabaseConfigured()) {
+    return readSubmittedOrderRowsFromSupabase();
+  }
+
   const orders = await readSubmittedOrders();
   return flattenSubmittedOrders(orders);
+}
+
+export async function readSubmittedOrderRowsPage(
+  page: number,
+  pageSize: number = DEFAULT_ADMIN_PAGE_SIZE
+): Promise<AdminOrdersPageResult> {
+  const safePageSize = Math.min(100, Math.max(1, pageSize));
+
+  if (isSupabaseConfigured()) {
+    const totalLineItems = await countSubmittedOrderItemsInSupabase();
+    const totalOrders = await countUniqueOrdersInSupabase();
+    const totalPages = Math.max(1, Math.ceil(totalLineItems / safePageSize));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const orders = await readSubmittedOrderRowsPageFromSupabase(
+      safePage,
+      safePageSize
+    );
+
+    return {
+      orders,
+      totalLineItems,
+      totalOrders,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages,
+    };
+  }
+
+  const allRows = flattenSubmittedOrders(await readSubmittedOrders());
+  return paginateRows(allRows, page, safePageSize);
 }
 
 export async function readOrdersJsonBuffer(): Promise<Buffer> {

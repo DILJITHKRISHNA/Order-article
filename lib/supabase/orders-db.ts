@@ -9,6 +9,7 @@ import {
   dedupeOrderLineItems,
   filterOrderedItems,
 } from "@/lib/orders-utils";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 interface SubmittedOrderItemRow {
@@ -178,26 +179,13 @@ export async function deleteSubmittedOrderLineFromSupabase(
   }
 }
 
-export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRow[]> {
-  const supabase = createSupabaseAdminClient();
-
-  const { data, error } = await supabase
-    .from("submitted_order_items")
-    .select("*")
-    .order("submitted_at", { ascending: false });
-
-  if (error) {
-    throw new Error(`Supabase read failed: ${error.message}`);
-  }
-
-  const rows = ((data ?? []) as SubmittedOrderItemRow[]).filter(
-    (row) => row.qty > 0
-  );
+function mapRowsToAdminOrders(rows: SubmittedOrderItemRow[]): AdminOrderRow[] {
   const seen = new Set<string>();
 
   return rows
+    .filter((row) => row.qty > 0)
     .filter((row) => {
-      const key = `${row.order_number}-${row.sku}-${row.submitted_at}`;
+      const key = row.id ?? `${row.order_number}-${row.sku}-${row.submitted_at}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -205,17 +193,70 @@ export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRo
     .map(mapRowToAdminOrder);
 }
 
-export async function readSubmittedOrdersFromSupabase(): Promise<SubmittedOrderRecord[]> {
+export async function countSubmittedOrderItemsInSupabase(): Promise<number> {
   const supabase = createSupabaseAdminClient();
+
+  const { count, error } = await supabase
+    .from("submitted_order_items")
+    .select("*", { count: "exact", head: true });
+
+  if (error) {
+    throw new Error(`Supabase count failed: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+export async function countUniqueOrdersInSupabase(): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const rows = await fetchAllRows<{ order_number: string }>(
+    supabase,
+    "submitted_order_items",
+    { select: "order_number", orderBy: "submitted_at", ascending: false }
+  );
+
+  return new Set(rows.map((row) => row.order_number)).size;
+}
+
+export async function readSubmittedOrderRowsPageFromSupabase(
+  page: number,
+  pageSize: number
+): Promise<AdminOrderRow[]> {
+  const supabase = createSupabaseAdminClient();
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   const { data, error } = await supabase
     .from("submitted_order_items")
     .select("*")
-    .order("submitted_at", { ascending: false });
+    .order("submitted_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(`Supabase read failed: ${error.message}`);
   }
 
-  return groupRowsIntoSubmittedOrders((data ?? []) as SubmittedOrderItemRow[]);
+  return mapRowsToAdminOrders((data ?? []) as SubmittedOrderItemRow[]);
+}
+
+export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRow[]> {
+  const supabase = createSupabaseAdminClient();
+  const rows = await fetchAllRows<SubmittedOrderItemRow>(
+    supabase,
+    "submitted_order_items",
+    { orderBy: "submitted_at", ascending: false }
+  );
+
+  return mapRowsToAdminOrders(rows);
+}
+
+export async function readSubmittedOrdersFromSupabase(): Promise<SubmittedOrderRecord[]> {
+  const supabase = createSupabaseAdminClient();
+  const rows = await fetchAllRows<SubmittedOrderItemRow>(
+    supabase,
+    "submitted_order_items",
+    { orderBy: "submitted_at", ascending: false }
+  );
+
+  return groupRowsIntoSubmittedOrders(rows);
 }

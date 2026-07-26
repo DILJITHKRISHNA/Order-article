@@ -26,16 +26,21 @@ export function dedupeOrderLineItems(items: OrderLineItem[]): OrderLineItem[] {
   return Array.from(seen.values());
 }
 
+function buildSubmittedOrderKey(order: SubmittedOrderRecord): string {
+  return `${order.customer.orderNumber}-${order.submittedAt}`;
+}
+
 export function dedupeSubmittedOrders(
   orders: SubmittedOrderRecord[]
 ): SubmittedOrderRecord[] {
-  const seenOrderNumbers = new Set<string>();
+  const seenOrderKeys = new Set<string>();
   const deduped: SubmittedOrderRecord[] = [];
 
   for (const order of orders) {
-    if (seenOrderNumbers.has(order.customer.orderNumber)) continue;
+    const key = buildSubmittedOrderKey(order);
+    if (seenOrderKeys.has(key)) continue;
 
-    seenOrderNumbers.add(order.customer.orderNumber);
+    seenOrderKeys.add(key);
     deduped.push({
       ...order,
       items: dedupeOrderLineItems(filterOrderedItems(order.items)),
