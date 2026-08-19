@@ -107,6 +107,7 @@ export function ArticleCombobox({
   disabled = false,
 }: ArticleComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const popoverContentRef = React.useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
   const disabledSet = React.useMemo(
@@ -122,7 +123,21 @@ export function ArticleCombobox({
   React.useEffect(() => {
     if (!open || isMobile) return;
 
-    const closeOnScroll = () => setOpen(false);
+    const closeOnScroll = (event: Event) => {
+      const target = event.target;
+      const popover = popoverContentRef.current;
+
+      // cmdk scrolls the results list as you type; that must not dismiss the popover.
+      if (
+        popover &&
+        target instanceof Node &&
+        popover.contains(target)
+      ) {
+        return;
+      }
+
+      setOpen(false);
+    };
 
     window.addEventListener("scroll", closeOnScroll, true);
     return () => window.removeEventListener("scroll", closeOnScroll, true);
@@ -182,7 +197,11 @@ export function ArticleCombobox({
           </Button>
         }
       />
-      <PopoverContent className="w-[var(--anchor-width)] p-0" align="start">
+      <PopoverContent
+        ref={popoverContentRef}
+        className="w-[var(--anchor-width)] p-0"
+        align="start"
+      >
         <ArticleCommandList
           catalog={catalog}
           value={value}
