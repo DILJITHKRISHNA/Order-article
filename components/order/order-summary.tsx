@@ -26,6 +26,9 @@ import { useOrderStore } from "@/store/order-store";
 export function OrderSummary() {
   const rows = useOrderStore((state) => state.rows);
   const catalog = useOrderStore((state) => state.catalog);
+  const selectedArticleNumber = useOrderStore(
+    (state) => state.selectedArticleNumber
+  );
   const removeOrderRow = useOrderStore((state) => state.removeOrderRow);
   const incrementRowQty = useOrderStore((state) => state.incrementRowQty);
   const decrementRowQty = useOrderStore((state) => state.decrementRowQty);
@@ -33,6 +36,12 @@ export function OrderSummary() {
   const sortedRows = useMemo(
     () =>
       [...rows].sort((a, b) => {
+        if (selectedArticleNumber) {
+          const aSelected = Number(a.article === selectedArticleNumber);
+          const bSelected = Number(b.article === selectedArticleNumber);
+          if (aSelected !== bSelected) return bSelected - aSelected;
+        }
+
         const articleCompare = a.article.localeCompare(b.article, undefined, {
           numeric: true,
         });
@@ -43,7 +52,7 @@ export function OrderSummary() {
 
         return Number(a.size) - Number(b.size);
       }),
-    [rows]
+    [rows, selectedArticleNumber]
   );
 
   const totalPairs = useMemo(

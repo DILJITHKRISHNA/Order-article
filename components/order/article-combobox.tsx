@@ -53,19 +53,75 @@ interface ArticleCommandListProps {
   onSelect: (articleNumber: string) => void;
 }
 
+function rankArticleMatch(articleNumber: string, query: string): number {
+  const normalizedArticle = articleNumber.toLowerCase();
+
+  if (normalizedArticle === query) return 3;
+  if (normalizedArticle.startsWith(query)) return 2;
+  if (normalizedArticle.includes(query)) return 1;
+  return 0;
+}
+
+function sortArticlesForSearch(
+  catalog: ArticleGroup[],
+  query: string,
+  selected: string | null
+): ArticleGroup[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    if (!selected) return catalog;
+
+    const selectedArticle = catalog.find(
+      (article) => article.articleNumber === selected
+    );
+    if (!selectedArticle) return catalog;
+
+    return [
+      selectedArticle,
+      ...catalog.filter((article) => article.articleNumber !== selected),
+    ];
+  }
+
+  return catalog
+    .map((article) => ({
+      article,
+      rank: rankArticleMatch(article.articleNumber, normalizedQuery),
+    }))
+    .filter((item) => item.rank > 0)
+    .sort((a, b) => {
+      if (b.rank !== a.rank) return b.rank - a.rank;
+      return a.article.articleNumber.localeCompare(
+        b.article.articleNumber,
+        undefined,
+        { numeric: true }
+      );
+    })
+    .map((item) => item.article);
+}
+
 function ArticleCommandList({
   catalog,
   value,
   disabledSet,
   onSelect,
 }: ArticleCommandListProps) {
+  const [search, setSearch] = React.useState("");
+  const articles = React.useMemo(
+    () => sortArticlesForSearch(catalog, search, value),
+    [catalog, search, value]
+  );
+
   return (
-    <Command>
-      <CommandInput placeholder="Search by article number..." />
+    <Command shouldFilter={false} filter={() => 1}>
+      <CommandInput
+        placeholder="Search by article number..."
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList>
         <CommandEmpty>No article found.</CommandEmpty>
         <CommandGroup>
-          {catalog.map((article) => {
+          {articles.map((article) => {
             const isDisabled = disabledSet.has(article.articleNumber);
             const isSelected = value === article.articleNumber;
 
