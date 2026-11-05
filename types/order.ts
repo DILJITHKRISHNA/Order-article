@@ -31,6 +31,8 @@ export interface SavedOrder {
 }
 
 export interface SubmittedOrderRecord {
+  /** Zone the order was placed in. Missing on legacy local records (treated as kerala). */
+  zone?: string;
   customer: CustomerDetails;
   items: OrderLineItem[];
   submittedAt: string;

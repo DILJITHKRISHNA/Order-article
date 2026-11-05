@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSession } from "@/lib/auth/session";
 import { syncAdminOrdersExcel } from "@/lib/admin-orders-store";
 import { appendSubmittedOrder } from "@/lib/orders-repository";
 import { submitOrderSchema } from "@/schemas/submit-order-schema";
@@ -8,6 +9,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const session = await getSession("user");
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const parsed = submitOrderSchema.safeParse(body);
@@ -24,10 +30,11 @@ export async function POST(request: Request) {
     await appendSubmittedOrder(
       parsed.data.customer,
       parsed.data.items,
-      submittedAt
+      submittedAt,
+      session.zone
     );
 
-    await syncAdminOrdersExcel();
+    await syncAdminOrdersExcel(session.zone);
 
     return NextResponse.json({
       success: true,

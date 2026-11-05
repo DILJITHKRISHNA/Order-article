@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { getWritableDataFilePath } from "@/lib/server-data-path";
 import { readSubmittedOrderRows } from "@/lib/orders-repository";
 import type { AdminOrderRow } from "@/types/order";
+import type { Zone } from "@/lib/zones";
 
 export type { AdminOrderRow };
 
@@ -79,10 +80,12 @@ async function buildAdminWorkbook(
   return workbook;
 }
 
-export async function syncAdminOrdersExcel(): Promise<void> {
-  const rows = await readSubmittedOrderRows();
+export async function syncAdminOrdersExcel(zone: Zone): Promise<void> {
+  const rows = await readSubmittedOrderRows(zone);
   const workbook = await buildAdminWorkbook(rows);
-  const filePath = await getWritableDataFilePath(ADMIN_ORDERS_FILENAME);
+  const filePath = await getWritableDataFilePath(
+    `admin-orders-${zone}.xlsx`
+  );
 
   if (!filePath) return;
 
@@ -93,12 +96,12 @@ export async function syncAdminOrdersExcel(): Promise<void> {
   }
 }
 
-export async function readAdminOrders(): Promise<AdminOrderRow[]> {
-  return readSubmittedOrderRows();
+export async function readAdminOrders(zone: Zone): Promise<AdminOrderRow[]> {
+  return readSubmittedOrderRows(zone);
 }
 
-export async function getAdminOrdersFileBuffer(): Promise<Buffer> {
-  const rows = await readSubmittedOrderRows();
+export async function getAdminOrdersFileBuffer(zone: Zone): Promise<Buffer> {
+  const rows = await readSubmittedOrderRows(zone);
   const workbook = await buildAdminWorkbook(rows);
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

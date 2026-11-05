@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ArticleSheetCard } from "@/components/admin/article-sheet-card";
+import { LoginCard } from "@/components/auth/login-card";
 import { AppHeader } from "@/components/layout/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,8 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getZoneLabel, isZone, type Zone } from "@/lib/zones";
 import type { AdminOrderRow } from "@/types/order";
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -63,10 +64,9 @@ function applyOrdersResponse(
 
 export function AdminPage() {
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  const [zone, setZone] = useState<Zone | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [stats, setStats] = useState({ totalLineItems: 0, totalOrders: 0 });
   const [pagination, setPagination] = useState({
@@ -113,6 +113,27 @@ export function AdminPage() {
     [applyOrders, pagination.page, pagination.pageSize]
   );
 
+  const loadStorageStatus = useCallback(async () => {
+    const storageResponse = await fetch("/api/admin/storage", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!storageResponse.ok) return;
+
+    const storage = (await storageResponse.json()) as {
+      provider: string;
+      supabaseConfigured: boolean;
+      supabaseConnected: boolean;
+      supabaseMessage: string;
+    };
+    setStorageProvider(storage.provider);
+    setSupabaseStatus({
+      configured: storage.supabaseConfigured,
+      connected: storage.supabaseConnected,
+      message: storage.supabaseMessage,
+    });
+  }, []);
+
   useEffect(() => {
     async function init() {
       try {
@@ -122,28 +143,13 @@ export function AdminPage() {
         });
         const session = (await sessionResponse.json()) as {
           authenticated: boolean;
+          zone: unknown;
         };
 
-        if (session.authenticated) {
+        if (session.authenticated && isZone(session.zone)) {
+          setZone(session.zone);
           await loadOrders();
-          const storageResponse = await fetch("/api/admin/storage", {
-            credentials: "include",
-            cache: "no-store",
-          });
-          if (storageResponse.ok) {
-            const storage = (await storageResponse.json()) as {
-              provider: string;
-              supabaseConfigured: boolean;
-              supabaseConnected: boolean;
-              supabaseMessage: string;
-            };
-            setStorageProvider(storage.provider);
-            setSupabaseStatus({
-              configured: storage.supabaseConfigured,
-              connected: storage.supabaseConnected,
-              message: storage.supabaseMessage,
-            });
-          }
+          await loadStorageStatus();
         } else {
           setIsAuthenticated(false);
         }
@@ -155,59 +161,20 @@ export function AdminPage() {
     }
 
     void init();
-  }, [loadOrders]);
+  }, [loadOrders, loadStorageStatus]);
 
-  const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsSubmitting(true);
+  const handleLoginSuccess = async (loggedInZone: Zone) => {
+    router.refresh();
 
-    try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ password: password.trim() }),
-      });
-
-      if (!response.ok) {
-        toast.error("Invalid admin password");
-        return;
-      }
-
-      router.refresh();
-
-      const loggedIn = await loadOrders();
-      if (!loggedIn) {
-        toast.error("Login succeeded but session was not saved. Try again.");
-        return;
-      }
-
-      const storageResponse = await fetch("/api/admin/storage", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (storageResponse.ok) {
-        const storage = (await storageResponse.json()) as {
-          provider: string;
-          supabaseConfigured: boolean;
-          supabaseConnected: boolean;
-          supabaseMessage: string;
-        };
-        setStorageProvider(storage.provider);
-        setSupabaseStatus({
-          configured: storage.supabaseConfigured,
-          connected: storage.supabaseConnected,
-          message: storage.supabaseMessage,
-        });
-      }
-
-      toast.success("Admin access granted");
-      setPassword("");
-    } catch {
-      toast.error("Login failed");
-    } finally {
-      setIsSubmitting(false);
+    const loggedIn = await loadOrders(1);
+    if (!loggedIn) {
+      toast.error("Login succeeded but session was not saved. Try again.");
+      return;
     }
+
+    setZone(loggedInZone);
+    await loadStorageStatus();
+    toast.success(`Admin access granted – ${getZoneLabel(loggedInZone)}`);
   };
 
   const handleLogout = async () => {
@@ -216,6 +183,7 @@ export function AdminPage() {
       credentials: "include",
     });
     setIsAuthenticated(false);
+    setZone(null);
     setOrders([]);
     setStats({ totalLineItems: 0, totalOrders: 0 });
     router.refresh();
@@ -281,35 +249,13 @@ export function AdminPage() {
       <div className="min-h-full bg-muted/30">
         <AppHeader />
         <main className="mx-auto flex max-w-md px-4 py-16 sm:px-6">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="size-5" />
-                Admin Access
-              </CardTitle>
-              <CardDescription>
-                Enter the admin password to view all submitted orders.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(event) => void handleLogin(event)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-password">Password</Label>
-                  <Input
-                    id="admin-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Admin password"
-                    autoComplete="current-password"
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <LoginCard
+            title="Admin Access"
+            description="Choose your zone and sign in to manage its orders and articles."
+            icon={ShieldCheck}
+            endpoint="/api/admin/login"
+            onSuccess={handleLoginSuccess}
+          />
         </main>
       </div>
     );
@@ -322,9 +268,9 @@ export function AdminPage() {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
             <div>
-              <CardTitle>Admin Orders</CardTitle>
+              <CardTitle>Admin Orders – {zone ? getZoneLabel(zone) : ""}</CardTitle>
               <CardDescription>
-                Master list of all submitted customer orders.
+                All submitted customer orders for your zone.
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -359,6 +305,8 @@ export function AdminPage() {
             )}
           </CardContent>
         </Card>
+
+        {zone ? <ArticleSheetCard zone={zone} /> : null}
 
         <Card>
           <CardHeader>

@@ -9,6 +9,7 @@ export async function fetchAllRows<T>(
     select?: string;
     orderBy?: string;
     ascending?: boolean;
+    zone?: string;
   }
 ): Promise<T[]> {
   const select = options?.select ?? "*";
@@ -19,9 +20,12 @@ export async function fetchAllRows<T>(
   let from = 0;
 
   while (true) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(select)
+    let query = supabase.from(table).select(select);
+    if (options?.zone) {
+      query = query.eq("zone", options.zone);
+    }
+
+    const { data, error } = await query
       .order(orderBy, { ascending })
       .range(from, from + SUPABASE_FETCH_BATCH_SIZE - 1);
 

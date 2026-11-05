@@ -32,3 +32,16 @@ create unique index if not exists idx_submitted_order_items_order_sku
 --   add column if not exists executive_name text not null default '';
 -- create unique index if not exists idx_submitted_order_items_order_sku
 --   on submitted_order_items (order_number, sku);
+
+-- ---------------------------------------------------------------------------
+-- Zones (kerala / tamil-nadu). Run once on existing databases:
+-- ---------------------------------------------------------------------------
+alter table submitted_order_items
+  add column if not exists zone text not null default 'kerala';
+
+create index if not exists idx_submitted_order_items_zone_submitted_at
+  on submitted_order_items (zone, submitted_at desc);
+
+-- Article Excel files are stored per zone in a private Storage bucket named
+-- "article-sheets" (object path: <zone>/articles.xlsx). The app creates the
+-- bucket automatically with the service role key on first upload.

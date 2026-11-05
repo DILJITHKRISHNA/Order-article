@@ -1,9 +1,15 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-export function AppHeader() {
+interface AppHeaderProps {
+  /** Optional right-aligned content (zone badge, logout button, ...). */
+  actions?: ReactNode;
+}
+
+export function AppHeader({ actions }: AppHeaderProps) {
   return (
     <header className="border-b bg-card">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -20,6 +26,9 @@ export function AppHeader() {
             Order Management
           </Badge>
         </div>
+        {actions ? (
+          <div className="ml-auto flex items-center gap-2">{actions}</div>
+        ) : null}
       </div>
       <Separator />
     </header>

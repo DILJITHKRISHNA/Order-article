@@ -100,7 +100,8 @@ export function flattenSubmittedOrders(
 export function createSubmittedOrderRecord(
   customer: CustomerDetails,
   items: OrderLineItem[],
-  submittedAt: string
+  submittedAt: string,
+  zone?: string
 ): SubmittedOrderRecord {
-  return { customer, items, submittedAt };
+  return { zone, customer, items, submittedAt };
 }

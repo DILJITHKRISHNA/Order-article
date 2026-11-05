@@ -11,9 +11,11 @@ import {
 } from "@/lib/orders-utils";
 import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import type { Zone } from "@/lib/zones";
 
 interface SubmittedOrderItemRow {
   id: string;
+  zone: string | null;
   order_number: string;
   customer_name: string;
   shop_name: string | null;
@@ -82,7 +84,8 @@ function groupRowsIntoSubmittedOrders(
           phoneNumber: row.phone_number,
         },
         [item],
-        row.submitted_at
+        row.submitted_at,
+        row.zone ?? undefined
       )
     );
   }
@@ -93,7 +96,8 @@ function groupRowsIntoSubmittedOrders(
 export async function appendSubmittedOrderToSupabase(
   customer: CustomerDetails,
   items: OrderLineItem[],
-  submittedAt: string
+  submittedAt: string,
+  zone: Zone
 ): Promise<SubmittedOrderRecord> {
   const supabase = createSupabaseAdminClient();
   const orderedItems = dedupeOrderLineItems(filterOrderedItems(items));
@@ -113,6 +117,7 @@ export async function appendSubmittedOrderToSupabase(
   }
 
   const rows = orderedItems.map((item) => ({
+    zone,
     order_number: customer.orderNumber,
     customer_name: customer.customerName,
     shop_name: customer.shopName,
@@ -133,16 +138,16 @@ export async function appendSubmittedOrderToSupabase(
     throw new Error(`Supabase insert failed: ${error.message}`);
   }
 
-  return createSubmittedOrderRecord(customer, orderedItems, submittedAt);
+  return createSubmittedOrderRecord(customer, orderedItems, submittedAt, zone);
 }
 
-export async function clearSubmittedOrdersFromSupabase(): Promise<void> {
+export async function clearSubmittedOrdersFromSupabase(zone: Zone): Promise<void> {
   const supabase = createSupabaseAdminClient();
 
   const { error } = await supabase
     .from("submitted_order_items")
     .delete()
-    .not("order_number", "is", null);
+    .eq("zone", zone);
 
   if (error) {
     throw new Error(`Supabase clear failed: ${error.message}`);
@@ -153,11 +158,15 @@ export async function deleteSubmittedOrderLineFromSupabase(
   orderNumber: string,
   sku: string,
   submittedAt: string,
+  zone: Zone,
   id?: string
 ): Promise<void> {
   const supabase = createSupabaseAdminClient();
 
-  let query = supabase.from("submitted_order_items").delete();
+  let query = supabase
+    .from("submitted_order_items")
+    .delete()
+    .eq("zone", zone);
 
   if (id) {
     query = query.eq("id", id);
@@ -193,12 +202,13 @@ function mapRowsToAdminOrders(rows: SubmittedOrderItemRow[]): AdminOrderRow[] {
     .map(mapRowToAdminOrder);
 }
 
-export async function countSubmittedOrderItemsInSupabase(): Promise<number> {
+export async function countSubmittedOrderItemsInSupabase(zone: Zone): Promise<number> {
   const supabase = createSupabaseAdminClient();
 
   const { count, error } = await supabase
     .from("submitted_order_items")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+    .eq("zone", zone);
 
   if (error) {
     throw new Error(`Supabase count failed: ${error.message}`);
@@ -207,12 +217,12 @@ export async function countSubmittedOrderItemsInSupabase(): Promise<number> {
   return count ?? 0;
 }
 
-export async function countUniqueOrdersInSupabase(): Promise<number> {
+export async function countUniqueOrdersInSupabase(zone: Zone): Promise<number> {
   const supabase = createSupabaseAdminClient();
   const rows = await fetchAllRows<{ order_number: string }>(
     supabase,
     "submitted_order_items",
-    { select: "order_number", orderBy: "submitted_at", ascending: false }
+    { select: "order_number", orderBy: "submitted_at", ascending: false, zone }
   );
 
   return new Set(rows.map((row) => row.order_number)).size;
@@ -220,7 +230,8 @@ export async function countUniqueOrdersInSupabase(): Promise<number> {
 
 export async function readSubmittedOrderRowsPageFromSupabase(
   page: number,
-  pageSize: number
+  pageSize: number,
+  zone: Zone
 ): Promise<AdminOrderRow[]> {
   const supabase = createSupabaseAdminClient();
   const from = (page - 1) * pageSize;
@@ -229,6 +240,7 @@ export async function readSubmittedOrderRowsPageFromSupabase(
   const { data, error } = await supabase
     .from("submitted_order_items")
     .select("*")
+    .eq("zone", zone)
     .order("submitted_at", { ascending: false })
     .range(from, to);
 
@@ -239,23 +251,23 @@ export async function readSubmittedOrderRowsPageFromSupabase(
   return mapRowsToAdminOrders((data ?? []) as SubmittedOrderItemRow[]);
 }
 
-export async function readSubmittedOrderRowsFromSupabase(): Promise<AdminOrderRow[]> {
+export async function readSubmittedOrderRowsFromSupabase(zone: Zone): Promise<AdminOrderRow[]> {
   const supabase = createSupabaseAdminClient();
   const rows = await fetchAllRows<SubmittedOrderItemRow>(
     supabase,
     "submitted_order_items",
-    { orderBy: "submitted_at", ascending: false }
+    { orderBy: "submitted_at", ascending: false, zone }
   );
 
   return mapRowsToAdminOrders(rows);
 }
 
-export async function readSubmittedOrdersFromSupabase(): Promise<SubmittedOrderRecord[]> {
+export async function readSubmittedOrdersFromSupabase(zone: Zone): Promise<SubmittedOrderRecord[]> {
   const supabase = createSupabaseAdminClient();
   const rows = await fetchAllRows<SubmittedOrderItemRow>(
     supabase,
     "submitted_order_items",
-    { orderBy: "submitted_at", ascending: false }
+    { orderBy: "submitted_at", ascending: false, zone }
   );
 
   return groupRowsIntoSubmittedOrders(rows);

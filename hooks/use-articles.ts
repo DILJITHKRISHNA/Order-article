@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { loadArticlesFromExcel } from "@/lib/articles-loader";
+import { loadArticles } from "@/lib/articles-loader";
 import { useOrderStore } from "@/store/order-store";
 
 export function useArticles() {
@@ -23,7 +23,7 @@ export function useArticles() {
 
     async function load() {
       try {
-        const articles = await loadArticlesFromExcel();
+        const articles = await loadArticles();
         if (!cancelled) {
           setCatalog(articles);
         }

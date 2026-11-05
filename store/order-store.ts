@@ -29,6 +29,7 @@ interface OrderState {
   incrementRowQty: (rowId: string) => void;
   decrementRowQty: (rowId: string) => void;
   resetOrder: () => void;
+  resetCatalog: () => void;
   hydrateOrder: (customer: CustomerDetails, rows: OrderRow[]) => void;
   getOrderLineItems: () => OrderLineItem[];
   getTotalPairs: () => number;
@@ -164,6 +165,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       selectedArticleNumber: null,
       rows: [],
     }),
+
+  resetCatalog: () =>
+    set({ catalog: [], catalogLoaded: false, catalogError: null }),
 
   hydrateOrder: (customer, rows) =>
     set({

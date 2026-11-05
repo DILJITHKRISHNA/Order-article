@@ -18,6 +18,7 @@ import {
   readSubmittedOrdersFromSupabase,
 } from "@/lib/supabase/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { DEFAULT_ZONE, type Zone } from "@/lib/zones";
 import {
   getLocalOrdersJsonBuffer,
   ORDERS_JSON_FILENAME,
@@ -35,6 +36,11 @@ export interface AdminOrdersPageResult {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+/** Legacy local records have no zone; they belong to the default zone. */
+function belongsToZone(order: SubmittedOrderRecord, zone: Zone): boolean {
+  return (order.zone ?? DEFAULT_ZONE) === zone;
 }
 
 function paginateRows(
@@ -77,7 +83,8 @@ async function writeLocalDatabase(database: OrdersDatabase): Promise<void> {
 export async function appendSubmittedOrder(
   customer: CustomerDetails,
   items: OrderLineItem[],
-  submittedAt: string
+  submittedAt: string,
+  zone: Zone
 ): Promise<SubmittedOrderRecord> {
   const orderedItems = dedupeOrderLineItems(filterOrderedItems(items));
 
@@ -86,7 +93,12 @@ export async function appendSubmittedOrder(
   }
 
   if (isSupabaseConfigured()) {
-    return appendSubmittedOrderToSupabase(customer, orderedItems, submittedAt);
+    return appendSubmittedOrderToSupabase(
+      customer,
+      orderedItems,
+      submittedAt,
+      zone
+    );
   }
 
   const database = await readLocalDatabase();
@@ -99,7 +111,12 @@ export async function appendSubmittedOrder(
     throw new Error("This order has already been submitted");
   }
 
-  const record = createSubmittedOrderRecord(customer, orderedItems, submittedAt);
+  const record = createSubmittedOrderRecord(
+    customer,
+    orderedItems,
+    submittedAt,
+    zone
+  );
 
   database.orders.push(record);
   await writeLocalDatabase(database);
@@ -111,6 +128,7 @@ export async function deleteSubmittedOrderLine(
   orderNumber: string,
   sku: string,
   submittedAt: string,
+  zone: Zone,
   id?: string
 ): Promise<void> {
   if (isSupabaseConfigured()) {
@@ -118,6 +136,7 @@ export async function deleteSubmittedOrderLine(
       orderNumber,
       sku,
       submittedAt,
+      zone,
       id
     );
     return;
@@ -129,6 +148,7 @@ export async function deleteSubmittedOrderLine(
   const nextOrders = database.orders
     .map((order) => {
       if (
+        !belongsToZone(order, zone) ||
         order.customer.orderNumber !== orderNumber ||
         order.submittedAt !== submittedAt
       ) {
@@ -155,47 +175,56 @@ export async function deleteSubmittedOrderLine(
   await writeLocalDatabase({ orders: nextOrders });
 }
 
-export async function clearSubmittedOrders(): Promise<void> {
+export async function clearSubmittedOrders(zone: Zone): Promise<void> {
   if (isSupabaseConfigured()) {
-    await clearSubmittedOrdersFromSupabase();
+    await clearSubmittedOrdersFromSupabase(zone);
     return;
   }
 
-  await writeLocalDatabase({ orders: [] });
+  const database = await readLocalDatabase();
+  await writeLocalDatabase({
+    orders: database.orders.filter((order) => !belongsToZone(order, zone)),
+  });
 }
 
-export async function readSubmittedOrders(): Promise<SubmittedOrderRecord[]> {
+export async function readSubmittedOrders(
+  zone: Zone
+): Promise<SubmittedOrderRecord[]> {
   if (isSupabaseConfigured()) {
-    return dedupeSubmittedOrders(await readSubmittedOrdersFromSupabase());
+    return dedupeSubmittedOrders(await readSubmittedOrdersFromSupabase(zone));
   }
 
   const database = await readLocalDatabase();
-  return dedupeSubmittedOrders(database.orders);
+  return dedupeSubmittedOrders(
+    database.orders.filter((order) => belongsToZone(order, zone))
+  );
 }
 
-export async function readSubmittedOrderRows() {
+export async function readSubmittedOrderRows(zone: Zone) {
   if (isSupabaseConfigured()) {
-    return readSubmittedOrderRowsFromSupabase();
+    return readSubmittedOrderRowsFromSupabase(zone);
   }
 
-  const orders = await readSubmittedOrders();
+  const orders = await readSubmittedOrders(zone);
   return flattenSubmittedOrders(orders);
 }
 
 export async function readSubmittedOrderRowsPage(
+  zone: Zone,
   page: number,
   pageSize: number = DEFAULT_ADMIN_PAGE_SIZE
 ): Promise<AdminOrdersPageResult> {
   const safePageSize = Math.min(100, Math.max(1, pageSize));
 
   if (isSupabaseConfigured()) {
-    const totalLineItems = await countSubmittedOrderItemsInSupabase();
-    const totalOrders = await countUniqueOrdersInSupabase();
+    const totalLineItems = await countSubmittedOrderItemsInSupabase(zone);
+    const totalOrders = await countUniqueOrdersInSupabase(zone);
     const totalPages = Math.max(1, Math.ceil(totalLineItems / safePageSize));
     const safePage = Math.min(Math.max(1, page), totalPages);
     const orders = await readSubmittedOrderRowsPageFromSupabase(
       safePage,
-      safePageSize
+      safePageSize,
+      zone
     );
 
     return {
@@ -208,13 +237,13 @@ export async function readSubmittedOrderRowsPage(
     };
   }
 
-  const allRows = flattenSubmittedOrders(await readSubmittedOrders());
+  const allRows = flattenSubmittedOrders(await readSubmittedOrders(zone));
   return paginateRows(allRows, page, safePageSize);
 }
 
-export async function readOrdersJsonBuffer(): Promise<Buffer> {
+export async function readOrdersJsonBuffer(zone: Zone): Promise<Buffer> {
   const database = isSupabaseConfigured()
-    ? { orders: await readSubmittedOrdersFromSupabase() }
+    ? { orders: await readSubmittedOrdersFromSupabase(zone) }
     : await readLocalDatabase();
 
   return getLocalOrdersJsonBuffer(database);

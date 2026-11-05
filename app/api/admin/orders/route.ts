@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { syncAdminOrdersExcel } from "@/lib/admin-orders-store";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 import {
   DEFAULT_ADMIN_PAGE_SIZE,
   deleteSubmittedOrderLine,
@@ -34,7 +34,8 @@ function parsePagination(searchParams: URLSearchParams) {
 }
 
 export async function GET(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,7 +43,11 @@ export async function GET(request: Request) {
     const { page, pageSize } = parsePagination(
       new URL(request.url).searchParams
     );
-    const result = await readSubmittedOrderRowsPage(page, pageSize);
+    const result = await readSubmittedOrderRowsPage(
+      session.zone,
+      page,
+      pageSize
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -55,7 +60,8 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -74,12 +80,14 @@ export async function DELETE(request: Request) {
       parsed.data.orderNumber,
       parsed.data.sku,
       parsed.data.submittedAt,
+      session.zone,
       parsed.data.id
     );
 
-    await syncAdminOrdersExcel();
+    await syncAdminOrdersExcel(session.zone);
 
     const result = await readSubmittedOrderRowsPage(
+      session.zone,
       parsed.data.page ?? 1,
       parsed.data.pageSize ?? DEFAULT_ADMIN_PAGE_SIZE
     );
