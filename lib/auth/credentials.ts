@@ -5,12 +5,55 @@ import type { Zone } from "@/lib/zones";
 export type Role = "user" | "admin";
 
 /**
- * Credentials are fixed per role + zone and live in env vars:
- *   USER_KERALA_EMAIL / USER_KERALA_PASSWORD
- *   ADMIN_TAMIL_NADU_EMAIL / ADMIN_TAMIL_NADU_PASSWORD  (zone id upper-cased, "-" -> "_")
+ * Credentials live in env vars, per role + zone (zone id upper-cased, "-" -> "_").
+ *
+ * One account per zone (current setup):
+ *   USER_RETAIL_EMAIL / USER_RETAIL_PASSWORD
+ *   ADMIN_CHENNAI_EMAIL / ADMIN_CHENNAI_PASSWORD
+ *
+ * Several accounts per zone (future: many executives, one admin) - set
+ * <ROLE>_<ZONE>_ACCOUNTS to a JSON array. It is used in addition to the pair above:
+ *   USER_RETAIL_ACCOUNTS=[{"email":"a@x.com","password":"..."},{"email":"b@x.com","password":"..."}]
  */
-function envKey(role: Role, zone: Zone, field: "EMAIL" | "PASSWORD") {
+interface Account {
+  email: string;
+  password: string;
+}
+
+function envKey(role: Role, zone: Zone, field: "EMAIL" | "PASSWORD" | "ACCOUNTS") {
   return `${role.toUpperCase()}_${zone.toUpperCase().replace(/-/g, "_")}_${field}`;
+}
+
+function getAccounts(role: Role, zone: Zone): Account[] {
+  const accounts: Account[] = [];
+
+  const email = process.env[envKey(role, zone, "EMAIL")]?.trim();
+  const password = process.env[envKey(role, zone, "PASSWORD")];
+  if (email && password) accounts.push({ email, password });
+
+  const list = process.env[envKey(role, zone, "ACCOUNTS")];
+  if (list) {
+    try {
+      const parsed: unknown = JSON.parse(list);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (
+            item &&
+            typeof item.email === "string" &&
+            typeof item.password === "string" &&
+            item.email.trim() &&
+            item.password
+          ) {
+            accounts.push({ email: item.email.trim(), password: item.password });
+          }
+        }
+      }
+    } catch {
+      console.error(`${envKey(role, zone, "ACCOUNTS")} is not valid JSON`);
+    }
+  }
+
+  return accounts;
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -30,16 +73,16 @@ export function verifyCredentials(
   email: string,
   password: string
 ): boolean {
-  const expectedEmail = process.env[envKey(role, zone, "EMAIL")]?.trim();
-  const expectedPassword = process.env[envKey(role, zone, "PASSWORD")];
+  const givenEmail = email.trim().toLowerCase();
+  let matched = false;
 
-  // Missing config must never allow a login.
-  if (!expectedEmail || !expectedPassword) return false;
+  // Check every account (no early exit) so timing doesn't reveal which matched.
+  // No configured accounts means no login.
+  for (const account of getAccounts(role, zone)) {
+    const emailOk = safeEqual(givenEmail, account.email.toLowerCase());
+    const passwordOk = safeEqual(password, account.password);
+    if (emailOk && passwordOk) matched = true;
+  }
 
-  const emailOk = safeEqual(
-    email.trim().toLowerCase(),
-    expectedEmail.toLowerCase()
-  );
-  const passwordOk = safeEqual(password, expectedPassword);
-  return emailOk && passwordOk;
+  return matched;
 }

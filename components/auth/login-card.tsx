@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { REQUIRE_LOGIN_CREDENTIALS } from "@/lib/auth/config";
 import { DEFAULT_ZONE, isZone, ZONES, type Zone } from "@/lib/zones";
 
 interface LoginCardProps {
@@ -92,6 +93,8 @@ export function LoginCard({
               ))}
             </select>
           </div>
+          {REQUIRE_LOGIN_CREDENTIALS ? (
+            <>
           <div className="space-y-2">
             <Label htmlFor="login-email">Email</Label>
             <Input
@@ -116,6 +119,8 @@ export function LoginCard({
               required
             />
           </div>
+            </>
+          ) : null}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Signing in..." : "Sign In"}
           </Button>

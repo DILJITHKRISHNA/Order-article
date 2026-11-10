@@ -251,7 +251,7 @@ export function AdminPage() {
         <main className="mx-auto flex max-w-md px-4 py-16 sm:px-6">
           <LoginCard
             title="Admin Access"
-            description="Choose your zone and sign in to manage its orders and articles."
+            description="Choose your zone to manage its orders and articles."
             icon={ShieldCheck}
             endpoint="/api/admin/login"
             onSuccess={handleLoginSuccess}

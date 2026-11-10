@@ -12,13 +12,13 @@ import type { Zone } from "@/lib/zones";
  * Per-zone article workbook storage.
  *  - Supabase configured: private Storage bucket, one object per zone.
  *  - Otherwise: local `data/articles/<zone>.xlsx` (dev fallback).
- * Kerala falls back to the bundled public/data/size12.xlsx until an admin uploads one.
+ * Retail (Kerala) falls back to the bundled public/data/size12.xlsx until an admin uploads one.
  */
 export const ARTICLES_BUCKET = "article-sheets";
 export const MAX_ARTICLE_FILE_BYTES = 10 * 1024 * 1024;
 
 const LEGACY_DEFAULT_FILES: Partial<Record<Zone, string>> = {
-  kerala: path.join(process.cwd(), "public", "data", "size12.xlsx"),
+  retail: path.join(process.cwd(), "public", "data", "size12.xlsx"),
 };
 
 export interface StoredArticleFile {

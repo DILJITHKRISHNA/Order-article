@@ -1,11 +1,12 @@
 export const ZONES = [
-  { id: "kerala", label: "Kerala" },
-  { id: "tamil-nadu", label: "Tamil Nadu" },
+  { id: "retail", label: "Retail" },
+  { id: "chennai", label: "Chennai" },
+  { id: "selam", label: "Selam" },
 ] as const;
 
 export type Zone = (typeof ZONES)[number]["id"];
 
-export const DEFAULT_ZONE: Zone = "kerala";
+export const DEFAULT_ZONE: Zone = "retail";
 
 export function isZone(value: unknown): value is Zone {
   return ZONES.some((zone) => zone.id === value);

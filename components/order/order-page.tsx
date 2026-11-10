@@ -217,7 +217,7 @@ export function OrderPage() {
         <main className="mx-auto flex max-w-md px-4 py-16 sm:px-6">
           <LoginCard
             title="Sign In"
-            description="Choose your zone and sign in to place orders."
+            description="Choose your zone to place orders."
             icon={UserRound}
             endpoint="/api/auth/login"
             onSuccess={handleLogin}

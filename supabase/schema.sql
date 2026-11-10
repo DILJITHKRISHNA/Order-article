@@ -34,10 +34,15 @@ create unique index if not exists idx_submitted_order_items_order_sku
 --   on submitted_order_items (order_number, sku);
 
 -- ---------------------------------------------------------------------------
--- Zones (kerala / tamil-nadu). Run once on existing databases:
+-- Zones (retail = Kerala / chennai / selam). Run once on existing databases:
 -- ---------------------------------------------------------------------------
 alter table submitted_order_items
-  add column if not exists zone text not null default 'kerala';
+  add column if not exists zone text not null default 'retail';
+
+-- Only needed if you already ran an earlier version of this block that used
+-- 'kerala' as the default: move those rows and the default to 'retail'.
+alter table submitted_order_items alter column zone set default 'retail';
+update submitted_order_items set zone = 'retail' where zone = 'kerala';
 
 create index if not exists idx_submitted_order_items_zone_submitted_at
   on submitted_order_items (zone, submitted_at desc);
