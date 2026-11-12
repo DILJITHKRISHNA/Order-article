@@ -108,7 +108,7 @@ function OrderWorkspace({
                   information before submitting your order.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pb-6 sm:pb-0">
+              <CardContent className="pb-6 sm:pb-4">
                 <CustomerForm />
               </CardContent>
             </Card>

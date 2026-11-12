@@ -40,7 +40,7 @@ export async function exportOrderToPdf(
     head: [["Field", "Value"]],
     body: [
       ["Order Number", customer.orderNumber],
-      ["Customer Name", customer.customerName],
+      ["Customer Name", customer.customerName || "-"],
       ["Shop Name", customer.shopName || "-"],
       ["Executive Name", customer.executiveName || "-"],
       ["Location", customer.location],

@@ -50,3 +50,21 @@ create index if not exists idx_submitted_order_items_zone_submitted_at
 -- Article Excel files are stored per zone in a private Storage bucket named
 -- "article-sheets" (object path: <zone>/articles.xlsx). The app creates the
 -- bucket automatically with the service role key on first upload.
+
+-- ---------------------------------------------------------------------------
+-- Dealers (saved customers used to autofill the order form). Run once:
+-- ---------------------------------------------------------------------------
+create table if not exists dealers (
+  id uuid primary key default gen_random_uuid(),
+  zone text not null,
+  shop_name text not null,
+  customer_name text not null default '',
+  executive_name text not null default '',
+  location text not null,
+  phone_number text not null,
+  created_at timestamptz not null default now(),
+  unique (zone, shop_name, phone_number)
+);
+
+create index if not exists idx_dealers_zone_customer_name
+  on dealers (zone, shop_name);

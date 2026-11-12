@@ -345,7 +345,7 @@ export function AdminPage() {
                           <TableCell className="font-mono text-xs">
                             {order.orderNumber}
                           </TableCell>
-                          <TableCell>{order.customerName}</TableCell>
+                          <TableCell>{order.customerName || "-"}</TableCell>
                           <TableCell>{order.shopName || "-"}</TableCell>
                           <TableCell>{order.executiveName || "-"}</TableCell>
                           <TableCell>{order.location}</TableCell>

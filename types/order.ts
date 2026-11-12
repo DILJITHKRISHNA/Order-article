@@ -53,3 +53,13 @@ export interface AdminOrderRow {
   sku: string;
   submittedAt: string;
 }
+
+/** A saved customer (dealer) used to autofill the customer form. Scoped per zone. */
+export interface Dealer {
+  id: string;
+  customerName: string;
+  shopName: string;
+  executiveName: string;
+  location: string;
+  phoneNumber: string;
+}
