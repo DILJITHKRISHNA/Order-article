@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import { Eye, EyeOff, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { REQUIRE_LOGIN_CREDENTIALS } from "@/lib/auth/config";
+import type { LoginMode } from "@/lib/auth/config";
 import { DEFAULT_ZONE, isZone, ZONES, type Zone } from "@/lib/zones";
 
 interface LoginCardProps {
@@ -22,6 +22,7 @@ interface LoginCardProps {
   description: string;
   icon: LucideIcon;
   endpoint: string;
+  mode: LoginMode;
   onSuccess: (zone: Zone) => void | Promise<void>;
 }
 
@@ -30,11 +31,13 @@ export function LoginCard({
   description,
   icon: Icon,
   endpoint,
+  mode,
   onSuccess,
 }: LoginCardProps) {
   const [zone, setZone] = useState<Zone>(DEFAULT_ZONE);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -93,33 +96,49 @@ export function LoginCard({
               ))}
             </select>
           </div>
-          {REQUIRE_LOGIN_CREDENTIALS ? (
-            <>
-          <div className="space-y-2">
-            <Label htmlFor="login-email">Email</Label>
-            <Input
-              id="login-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              autoComplete="username"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="login-password">Password</Label>
-            <Input
-              id="login-password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-            </>
+          {mode === "email-password" ? (
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="username"
+                required
+              />
+            </div>
+          ) : null}
+          {mode !== "zone" ? (
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  className="pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+            </div>
           ) : null}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Signing in..." : "Sign In"}

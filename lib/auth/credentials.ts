@@ -67,6 +67,19 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufferA, bufferB);
 }
 
+/** One shared password per zone, from <ROLE>_<ZONE>_PASSWORD (e.g. ADMIN_RETAIL_PASSWORD). */
+export function verifyZonePassword(
+  role: Role,
+  zone: Zone,
+  password: string
+): boolean {
+  const expected = process.env[envKey(role, zone, "PASSWORD")];
+
+  // Missing config must never allow a login.
+  if (!expected || !password) return false;
+  return safeEqual(password, expected);
+}
+
 export function verifyCredentials(
   role: Role,
   zone: Zone,

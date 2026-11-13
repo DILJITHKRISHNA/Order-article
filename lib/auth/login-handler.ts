@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { REQUIRE_LOGIN_CREDENTIALS } from "@/lib/auth/config";
-import { verifyCredentials, type Role } from "@/lib/auth/credentials";
+import { LOGIN_MODES } from "@/lib/auth/config";
+import {
+  verifyCredentials,
+  verifyZonePassword,
+  type Role,
+} from "@/lib/auth/credentials";
 import { startSession } from "@/lib/auth/session";
 import { ZONES } from "@/lib/zones";
 
@@ -26,8 +30,17 @@ export async function handleLogin(request: Request, role: Role) {
     const { zone, email, password } = parsed.data;
     const typedZone = zone as (typeof ZONES)[number]["id"];
 
+    const mode = LOGIN_MODES[role];
+
+    if (mode === "zone-password" && !verifyZonePassword(role, typedZone, password)) {
+      return NextResponse.json(
+        { error: "Incorrect password for this zone" },
+        { status: 401 }
+      );
+    }
+
     if (
-      REQUIRE_LOGIN_CREDENTIALS &&
+      mode === "email-password" &&
       (!email || !password || !verifyCredentials(role, typedZone, email, password))
     ) {
       return NextResponse.json(

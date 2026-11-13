@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, LogOut, PackageSearch, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { LOGIN_MODES } from "@/lib/auth/config";
 import { LoginCard } from "@/components/auth/login-card";
 import { AppHeader } from "@/components/layout/app-header";
 import { ActiveArticlePanel } from "@/components/order/active-article-panel";
@@ -220,6 +221,7 @@ export function OrderPage() {
             description="Choose your zone to place orders."
             icon={UserRound}
             endpoint="/api/auth/login"
+            mode={LOGIN_MODES.user}
             onSuccess={handleLogin}
           />
         </main>

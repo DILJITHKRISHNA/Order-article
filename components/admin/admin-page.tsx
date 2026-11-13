@@ -6,6 +6,7 @@ import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ArticleSheetCard } from "@/components/admin/article-sheet-card";
+import { LOGIN_MODES } from "@/lib/auth/config";
 import { LoginCard } from "@/components/auth/login-card";
 import { AppHeader } from "@/components/layout/app-header";
 import { Badge } from "@/components/ui/badge";
@@ -251,9 +252,10 @@ export function AdminPage() {
         <main className="mx-auto flex max-w-md px-4 py-16 sm:px-6">
           <LoginCard
             title="Admin Access"
-            description="Choose your zone to manage its orders and articles."
+            description="Choose your zone and enter its password to manage orders and articles."
             icon={ShieldCheck}
             endpoint="/api/admin/login"
+            mode={LOGIN_MODES.admin}
             onSuccess={handleLoginSuccess}
           />
         </main>
