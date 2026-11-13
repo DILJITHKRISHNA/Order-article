@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BookUser } from "lucide-react";
+import { ArrowRight, BookUser } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -30,12 +30,13 @@ async function fetchDealers(): Promise<Dealer[] | null> {
   }
 }
 
-export function CustomerForm() {
+export function CustomerForm({ onNext }: { onNext: () => void }) {
   const customer = useOrderStore((state) => state.customer);
   const setCustomer = useOrderStore((state) => state.setCustomer);
 
   const {
     register,
+    trigger,
     formState: { errors },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -79,6 +80,16 @@ export function CustomerForm() {
       ...(dealer.executiveName ? { executiveName: dealer.executiveName } : {}),
     });
     setShowSuggestions(false);
+  };
+
+  const handleNext = async () => {
+    // Shows the field errors and only continues when the details are valid.
+    const isValid = await trigger();
+    if (!isValid) {
+      toast.error("Complete the customer details to continue");
+      return;
+    }
+    onNext();
   };
 
   const handleSaveDealer = async () => {
@@ -244,7 +255,7 @@ export function CustomerForm() {
         )}
       </div>
 
-      <div className="flex items-end sm:col-span-2 lg:col-span-3 lg:justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 lg:col-span-3">
         <Button
           type="button"
           variant="outline"
@@ -253,6 +264,10 @@ export function CustomerForm() {
         >
           <BookUser data-icon="inline-start" />
           {isSavingDealer ? "Saving..." : "Add Dealer"}
+        </Button>
+        <Button type="button" onClick={() => void handleNext()}>
+          Next
+          <ArrowRight data-icon="inline-end" />
         </Button>
       </div>
     </div>

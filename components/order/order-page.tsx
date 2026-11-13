@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, LogOut, PackageSearch, UserRound } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronRight,
+  LogOut,
+  PackageSearch,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { LOGIN_MODES } from "@/lib/auth/config";
@@ -28,6 +35,8 @@ import { getZoneLabel, isZone, type Zone } from "@/lib/zones";
 import { useOrderStore } from "@/store/order-store";
 
 const LAST_ZONE_KEY = "order-management:last-zone";
+
+type OrderStep = "customer" | "articles";
 
 function LoadingState() {
   return (
@@ -78,7 +87,9 @@ function OrderWorkspace({
     (state) => state.selectedArticleNumber
   );
   const rows = useOrderStore((state) => state.rows);
+  const customer = useOrderStore((state) => state.customer);
   const showWorkspace = Boolean(selectedArticleNumber) || rows.length > 0;
+  const [step, setStep] = useState<OrderStep>("customer");
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -101,47 +112,97 @@ function OrderWorkspace({
           <ErrorState message={error} />
         ) : (
           <>
-            <Card className="pb-2 sm:pb-0">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold">Customer Details</CardTitle>
-                <CardDescription>
-                  Order number is generated automatically. Fill in customer
-                  information before submitting your order.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-6 sm:pb-4">
-                <CustomerForm />
-              </CardContent>
-            </Card>
+            <nav
+              aria-label="Order steps"
+              className="flex items-center gap-1 text-sm"
+            >
+              {step === "articles" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Back to customer details"
+                  onClick={() => setStep("customer")}
+                >
+                  <ArrowLeft />
+                </Button>
+              ) : null}
+              {step === "articles" ? (
+                <button
+                  type="button"
+                  onClick={() => setStep("customer")}
+                  className="font-medium text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Customer Details
+                </button>
+              ) : (
+                <span aria-current="step" className="font-semibold">
+                  Customer Details
+                </span>
+              )}
+              <ChevronRight className="size-4 text-muted-foreground" />
+              <span
+                aria-current={step === "articles" ? "step" : undefined}
+                className={
+                  step === "articles"
+                    ? "font-semibold"
+                    : "text-muted-foreground"
+                }
+              >
+                Articles
+              </span>
+            </nav>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-bold">Articles</CardTitle>
-                <CardDescription>
-                  Search an article, pick colors and sizes like 6X10 or 11X12,
-                  then set quantities in the order summary.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-2 sm:pt-0">
-                <OrderToolbar catalog={catalog} />
+            {step === "customer" ? (
+              <Card className="pb-2 sm:pb-0">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold">
+                    Customer Details
+                  </CardTitle>
+                  <CardDescription>
+                    Order number is generated automatically. Fill in customer
+                    information, then continue to add articles.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-6 sm:pb-4">
+                  <CustomerForm onNext={() => setStep("articles")} />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold">Articles</CardTitle>
+                  <CardDescription>
+                    {customer.shopName ? `${customer.shopName} · ` : ""}
+                    {customer.orderNumber}. Search an article, pick colors and
+                    sizes like 6X10 or 11X12, then set quantities in the order
+                    summary.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 pt-2 sm:pt-0">
+                  <OrderToolbar
+                    catalog={catalog}
+                    onOrderReset={() => setStep("customer")}
+                  />
 
-                {showWorkspace ? (
-                  <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-                    <ActiveArticlePanel catalog={catalog} />
-                    <OrderSummary />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-background px-6 py-16 text-center">
-                    <PackageSearch className="mb-3 size-10 text-muted-foreground" />
-                    <h3 className="text-sm font-medium">No articles added</h3>
-                    <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                      Search for an article number above to start building your
-                      order.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {showWorkspace ? (
+                    <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+                      <ActiveArticlePanel catalog={catalog} />
+                      <OrderSummary />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-background px-6 py-16 text-center">
+                      <PackageSearch className="mb-3 size-10 text-muted-foreground" />
+                      <h3 className="text-sm font-medium">No articles added</h3>
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                        Search for an article number above to start building
+                        your order.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>

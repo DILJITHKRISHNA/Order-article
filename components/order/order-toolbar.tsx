@@ -21,9 +21,11 @@ import type { ArticleGroup } from "@/types/article";
 
 interface OrderToolbarProps {
   catalog: ArticleGroup[];
+  /** Called after the order is submitted or a new order is started. */
+  onOrderReset?: () => void;
 }
 
-export function OrderToolbar({ catalog }: OrderToolbarProps) {
+export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -70,6 +72,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
       resetOrder();
       setCanLoadSavedOrder(false);
       toast.success("Order submitted successfully");
+      onOrderReset?.();
     } catch (error) {
       saveSubmittedOrderToStorage({
         customer,
@@ -127,6 +130,7 @@ export function OrderToolbar({ catalog }: OrderToolbarProps) {
     resetOrder();
     setCanLoadSavedOrder(false);
     toast.success("New order started");
+    onOrderReset?.();
   };
 
   return (
