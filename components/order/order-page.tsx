@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -30,11 +30,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/use-articles";
 import { useOrderPersistence } from "@/hooks/use-order-persistence";
-import { clearOrderFromStorage } from "@/lib/storage";
+import { deleteDraft, listDrafts } from "@/lib/drafts";
 import { getZoneLabel, isZone, type Zone } from "@/lib/zones";
 import { useOrderStore } from "@/store/order-store";
-
-const LAST_ZONE_KEY = "order-management:last-zone";
 
 type OrderStep = "customer" | "articles";
 
@@ -82,14 +80,49 @@ function OrderWorkspace({
   onLogout: () => void;
 }) {
   const { catalog, isLoading, error } = useArticles();
-  useOrderPersistence();
+  useOrderPersistence(zone);
   const selectedArticleNumber = useOrderStore(
     (state) => state.selectedArticleNumber
   );
   const rows = useOrderStore((state) => state.rows);
   const customer = useOrderStore((state) => state.customer);
+  const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
   const showWorkspace = Boolean(selectedArticleNumber) || rows.length > 0;
+
   const [step, setStep] = useState<OrderStep>("customer");
+
+  // The most recent saved order other than the one being edited.
+  // Re-read whenever the order changes so the Load button stays current.
+  const previousDraft = useMemo(
+    () =>
+      listDrafts(zone).find(
+        (draft) => draft.customer.orderNumber !== customer.orderNumber
+      ) ?? null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [zone, customer.orderNumber, rows]
+  );
+
+  const handleLoad = () => {
+    if (!previousDraft) {
+      toast.error("No saved order found on this device");
+      return;
+    }
+    // Drop the current order only if it is empty; a started order stays saved.
+    if (rows.length === 0) deleteDraft(zone, customer.orderNumber);
+    hydrateOrder(previousDraft.customer, previousDraft.rows);
+    setStep(previousDraft.rows.length > 0 ? "articles" : "customer");
+    toast.success(
+      `Restored order${
+        previousDraft.customer.shopName
+          ? ` for ${previousDraft.customer.shopName}`
+          : ""
+      }`
+    );
+  };
+
+  const handleResumeDraft = (hasItems: boolean) => {
+    if (hasItems) setStep("articles");
+  };
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -165,7 +198,13 @@ function OrderWorkspace({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pb-6 sm:pb-4">
-                  <CustomerForm onNext={() => setStep("articles")} />
+                  <CustomerForm
+                    zone={zone}
+                    onNext={() => setStep("articles")}
+                    onResume={handleResumeDraft}
+                    canLoad={Boolean(previousDraft)}
+                    onLoad={handleLoad}
+                  />
                 </CardContent>
               </Card>
             ) : (
@@ -182,6 +221,9 @@ function OrderWorkspace({
                 <CardContent className="space-y-6 pt-2 sm:pt-0">
                   <OrderToolbar
                     catalog={catalog}
+                    zone={zone}
+                    canLoad={Boolean(previousDraft)}
+                    onLoad={handleLoad}
                     onOrderReset={() => setStep("customer")}
                   />
 
@@ -242,12 +284,8 @@ export function OrderPage() {
 
   const handleLogin = useCallback(
     (nextZone: Zone) => {
-      // A draft from another zone would reference articles this zone doesn't have.
-      if (localStorage.getItem(LAST_ZONE_KEY) !== nextZone) {
-        clearOrderFromStorage();
-        resetOrder();
-      }
-      localStorage.setItem(LAST_ZONE_KEY, nextZone);
+      // Drafts are saved per zone and picked up again by the workspace.
+      resetOrder();
       resetCatalog();
       setZone(nextZone);
     },
@@ -256,10 +294,11 @@ export function OrderPage() {
 
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    resetOrder();
     resetCatalog();
     setZone(null);
     toast.success("Logged out");
-  }, [resetCatalog]);
+  }, [resetCatalog, resetOrder]);
 
   if (isCheckingSession) {
     return (

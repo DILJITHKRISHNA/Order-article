@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, BookUser } from "lucide-react";
+import { ArrowRight, BookUser, FolderOpen, History } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,6 +13,9 @@ import {
   customerSchema,
   type CustomerFormValues,
 } from "@/schemas/customer-schema";
+import { deleteDraft, findDraftsForShop, listDrafts, type OrderDraft } from "@/lib/drafts";
+import { selectTotalPairs } from "@/lib/order-selectors";
+import type { Zone } from "@/lib/zones";
 import { dealerSchema } from "@/schemas/dealer-schema";
 import { useOrderStore } from "@/store/order-store";
 import type { Dealer } from "@/types/order";
@@ -30,9 +33,34 @@ async function fetchDealers(): Promise<Dealer[] | null> {
   }
 }
 
-export function CustomerForm({ onNext }: { onNext: () => void }) {
+function timeAgo(iso: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return `${Math.round(hours / 24)} d ago`;
+}
+
+export function CustomerForm({
+  zone,
+  onNext,
+  onResume,
+  canLoad,
+  onLoad,
+}: {
+  zone: Zone;
+  onNext: () => void;
+  /** Called after an earlier unsubmitted order was loaded into the form. */
+  onResume: (hasItems: boolean) => void;
+  /** Whether there is a previous saved order to restore. */
+  canLoad: boolean;
+  onLoad: () => void;
+}) {
   const customer = useOrderStore((state) => state.customer);
   const setCustomer = useOrderStore((state) => state.setCustomer);
+  const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
+  const catalog = useOrderStore((state) => state.catalog);
 
   const {
     register,
@@ -47,6 +75,7 @@ export function CustomerForm({ onNext }: { onNext: () => void }) {
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSavingDealer, setIsSavingDealer] = useState(false);
+  const [drafts] = useState<OrderDraft[]>(() => listDrafts(zone));
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +98,22 @@ export function CustomerForm({ onNext }: { onNext: () => void }) {
       )
       .slice(0, MAX_SUGGESTIONS);
   }, [dealers, customer.shopName]);
+
+  const matchingDrafts = useMemo(
+    () =>
+      findDraftsForShop(drafts, customer.shopName, customer.orderNumber).slice(0, 3),
+    [drafts, customer.shopName, customer.orderNumber]
+  );
+
+  const handleResumeDraft = (draft: OrderDraft) => {
+    // Drop the half-typed order we are leaving (only if it has no items, so a
+    // started order is never lost), then load the earlier one.
+    if (useOrderStore.getState().rows.length === 0) {
+      deleteDraft(zone, customer.orderNumber);
+    }
+    hydrateOrder(draft.customer, draft.rows);
+    onResume(draft.rows.length > 0);
+  };
 
   const applyDealer = (dealer: Dealer) => {
     setCustomer({
@@ -255,7 +300,46 @@ export function CustomerForm({ onNext }: { onNext: () => void }) {
         )}
       </div>
 
+      {matchingDrafts.length > 0 ? (
+        <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+          {matchingDrafts.map((draft) => (
+            <div
+              key={draft.customer.orderNumber}
+              className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+            >
+              <History className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">{draft.customer.shopName}</span>{" "}
+                has an unsubmitted order
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {selectTotalPairs(draft.rows, catalog)} pairs · saved{" "}
+                  {timeAgo(draft.savedAt)}
+                </span>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => handleResumeDraft(draft)}
+              >
+                Resume
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 lg:col-span-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onLoad}
+          disabled={!canLoad}
+        >
+          <FolderOpen data-icon="inline-start" />
+          Load
+        </Button>
         <Button
           type="button"
           variant="outline"

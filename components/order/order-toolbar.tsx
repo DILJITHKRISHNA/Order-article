@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, FolderOpen, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,23 +9,30 @@ import { Button } from "@/components/ui/button";
 import { exportOrderToPdf } from "@/lib/export-order";
 import { submitOrderToAdmin } from "@/lib/submit-order";
 import { selectOrderLineItems } from "@/lib/order-selectors";
-import {
-  clearOrderFromStorage,
-  hasSavedOrderInStorage,
-  loadOrderFromStorage,
-  saveSubmittedOrderToStorage,
-} from "@/lib/storage";
+import { deleteDraft } from "@/lib/drafts";
+import { saveSubmittedOrderToStorage } from "@/lib/storage";
+import type { Zone } from "@/lib/zones";
 import { customerSchema } from "@/schemas/customer-schema";
 import { useOrderStore } from "@/store/order-store";
 import type { ArticleGroup } from "@/types/article";
 
 interface OrderToolbarProps {
   catalog: ArticleGroup[];
+  zone: Zone;
+  /** Whether there is a previous saved order to restore. */
+  canLoad: boolean;
+  onLoad: () => void;
   /** Called after the order is submitted or a new order is started. */
   onOrderReset?: () => void;
 }
 
-export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
+export function OrderToolbar({
+  catalog,
+  zone,
+  canLoad,
+  onLoad,
+  onOrderReset,
+}: OrderToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,12 +43,6 @@ export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
   );
   const selectArticle = useOrderStore((state) => state.selectArticle);
   const resetOrder = useOrderStore((state) => state.resetOrder);
-  const hydrateOrder = useOrderStore((state) => state.hydrateOrder);
-  const [canLoadSavedOrder, setCanLoadSavedOrder] = useState(false);
-
-  useEffect(() => {
-    setCanLoadSavedOrder(hasSavedOrderInStorage());
-  }, [customer, rows]);
 
   const handleArticleSelect = (articleNumber: string) => {
     const selected = selectArticle(articleNumber);
@@ -68,9 +69,8 @@ export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
     setIsSubmitting(true);
     try {
       await submitOrderToAdmin(customer, items);
-      clearOrderFromStorage();
+      deleteDraft(zone, customer.orderNumber);
       resetOrder();
-      setCanLoadSavedOrder(false);
       toast.success("Order submitted successfully");
       onOrderReset?.();
     } catch (error) {
@@ -113,22 +113,9 @@ export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
     }
   };
 
-  const handleLoad = () => {
-    const savedOrder = loadOrderFromStorage();
-    if (!savedOrder) {
-      setCanLoadSavedOrder(false);
-      toast.error("No saved order found on this device");
-      return;
-    }
-
-    hydrateOrder(savedOrder.customer, savedOrder.rows);
-    toast.success("Saved order restored");
-  };
-
   const handleReset = () => {
-    clearOrderFromStorage();
+    deleteDraft(zone, customer.orderNumber);
     resetOrder();
-    setCanLoadSavedOrder(false);
     toast.success("New order started");
     onOrderReset?.();
   };
@@ -149,8 +136,8 @@ export function OrderToolbar({ catalog, onOrderReset }: OrderToolbarProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={handleLoad}
-          disabled={!canLoadSavedOrder}
+          onClick={onLoad}
+          disabled={!canLoad}
         >
           <FolderOpen data-icon="inline-start" />
           Load

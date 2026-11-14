@@ -2,16 +2,16 @@
 
 import { useEffect } from "react";
 
-import { hasCustomerDraft, saveOrderDraft } from "@/lib/storage";
+import { upsertDraft } from "@/lib/drafts";
+import type { Zone } from "@/lib/zones";
 import { useOrderStore } from "@/store/order-store";
 
-export function useOrderPersistence() {
+/** Keeps the unsubmitted order saved in this browser as it changes. */
+export function useOrderPersistence(zone: Zone) {
   const customer = useOrderStore((state) => state.customer);
   const rows = useOrderStore((state) => state.rows);
 
   useEffect(() => {
-    if (rows.length > 0 || hasCustomerDraft(customer)) {
-      saveOrderDraft(customer, rows);
-    }
-  }, [customer, rows]);
+    upsertDraft(zone, customer, rows);
+  }, [zone, customer, rows]);
 }
